@@ -89,7 +89,7 @@ const Header = () => {
             {/* Account */}
             <button
               className="p-2"
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate("/login")}
               title="Sign Up / Log In"
             >
               <User className="w-5 h-5 text-gray-700" />
