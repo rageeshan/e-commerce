@@ -1,19 +1,45 @@
-// Login.jsx
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  //   const navigate = useNavigate();
 
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Add your login logic here
-    // After successful login:
-    // navigate('/'); // Redirect to home
+    setError("");
+
+    try {
+      const res = await fetch("http://localhost:5001/api/user/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Invalid credentials");
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (data.role === "admin") {
+        navigate("/admin");
+      } else if (data.role === "user") {
+        navigate("/");
+      } else {
+        setError("Unauthorized access");
+      }
+    } catch {
+      setError("Server error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -29,6 +55,17 @@ const Login = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          {error && (
+            <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+              {error}
+            </div>
+          )}
+          {error && (
+            <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm text-gray-700 mb-1">Email</label>

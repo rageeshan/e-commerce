@@ -92,3 +92,43 @@ export async function deleteUser(req, res) {
     res.status(500).json({ message: "Internal server error" });
   }
 }
+
+export const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // 🔴 Emergency hardcoded admin
+    if (email === "admin@gmail.com" && password === "RAGEESHAN2003@") {
+      return res.status(200).json({
+        role: "admin",
+        message: "Admin login successful",
+      });
+    }
+
+    // 🔍 Find user
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    // ❌ No bcrypt (plain text comparison)
+    if (user.password !== password) {
+      return res.status(401).json({
+        message: "Invalid credentials",
+      });
+    }
+
+    return res.status(200).json({
+      role: user.role,
+      message: "Login successful",
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
