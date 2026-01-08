@@ -9,6 +9,9 @@ import {
   FileText,
   DollarSign,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+const navigate = useNavigate;
 
 const AddProduct = () => {
   const [formData, setFormData] = useState({
@@ -70,10 +73,8 @@ const AddProduct = () => {
     try {
       const form = new FormData();
 
-      // Append all images with the field name "image"
       images.forEach((img) => form.append("image", img.file));
 
-      // Append other fields
       form.append("category", formData.category);
       form.append("name", formData.name);
       form.append("price", formData.price);
@@ -81,12 +82,11 @@ const AddProduct = () => {
       form.append("stockStatus", formData.stockStatus);
       form.append("onSale", formData.onSale);
 
-      // Only append salePrice if onSale is true
       if (formData.onSale) form.append("salePrice", formData.salePrice);
 
       const res = await fetch("http://localhost:5001/api/products", {
         method: "POST",
-        body: form, // do NOT set Content-Type manually
+        body: form,
       });
 
       if (!res.ok) throw new Error("Failed to add product");
@@ -105,6 +105,8 @@ const AddProduct = () => {
         onSale: false,
       });
       setImages([]);
+
+      navigate("/adminView");
     } catch (error) {
       console.error(error);
       alert("Something went wrong while adding the product!");

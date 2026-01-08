@@ -1,5 +1,6 @@
 import express from "express";
 import multer from "multer";
+import path from "path";
 import {
   createProduct,
   deleteProduct,
@@ -11,12 +12,23 @@ import {
 const router = express.Router();
 
 // ---------------- Multer Setup ----------------
+// In productRoute.js - Update the filename function
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "uploads/"); // Make sure this folder exists in your project root
+    cb(null, "uploads/");
   },
+  // Update the filename function in Multer configuration
   filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
+    const originalName = file.originalname;
+    const ext = path.extname(originalName); // Get extension (.jpg, .png, etc)
+
+    // Generate a simple, short filename
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000);
+    const cleanFilename = `${timestamp}-${random}${ext}`;
+
+    console.log(`📸 Original: ${originalName} → Saved as: ${cleanFilename}`);
+    cb(null, cleanFilename);
   },
 });
 

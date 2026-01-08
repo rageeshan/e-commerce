@@ -6,6 +6,7 @@ const productSchema = mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+      enum: ["Accessories", "Clothes", "Shoes", "Bags"],
     },
 
     image: {
