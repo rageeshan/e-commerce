@@ -8,6 +8,7 @@ import Accessories from "./pages/Accessories";
 import Shoes from "./pages/Shoes";
 import Bags from "./pages/Bags";
 import Sale from "./pages/Sale";
+import AddProduct from "./pages/AddProduct";
 
 const App = () => {
   return (
@@ -18,6 +19,7 @@ const App = () => {
       <Route path="/shoes" element={<Shoes />} />
       <Route path="/bags" element={<Bags />} />
       <Route path="/sale" element={<Sale />} />
+      <Route path="/addProduct" element={<AddProduct />} />
       {/* <Route path="/signup" element={<SignUp />} /> */}
     </Routes>
   );
