@@ -347,10 +347,7 @@ const AdminProductView = () => {
                     alt={product.name}
                     className="h-56 w-full object-cover bg-gray-100"
                     onError={(e) => {
-                      console.error(
-                        "❌ Image failed to load for:",
-                        product.name
-                      );
+                      console.error("Image failed to load for:", product.name);
                       console.error("Attempted URL:", imageUrl);
                       console.error("Product images:", product.image);
 
@@ -361,10 +358,7 @@ const AdminProductView = () => {
                         "h-56 w-full object-cover bg-gray-200";
                     }}
                     onLoad={() => {
-                      console.log(
-                        "✅ Image loaded successfully:",
-                        product.name
-                      );
+                      console.log("Image loaded successfully:", product.name);
                     }}
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
@@ -418,15 +412,15 @@ const AdminProductView = () => {
                       {product.onSale ? (
                         <div>
                           <p className="text-red-600 font-bold text-lg">
-                            රු{product.salePrice?.toLocaleString("si-LK")}
+                            Rs {product.salePrice?.toLocaleString("si-LK")}
                           </p>
                           <p className="text-gray-400 line-through text-sm">
-                            රු{product.price.toLocaleString("si-LK")}
+                            Rs {product.price.toLocaleString("si-LK")}
                           </p>
                         </div>
                       ) : (
                         <p className="text-gray-900 font-bold text-lg">
-                          රු{product.price.toLocaleString("si-LK")}
+                          Rs {product.price.toLocaleString("si-LK")}
                         </p>
                       )}
                     </div>
@@ -550,7 +544,7 @@ const AdminProductView = () => {
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600">
-                      රු
+                      Rs
                     </span>
                     <input
                       type="number"
@@ -575,10 +569,10 @@ const AdminProductView = () => {
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all bg-white"
                   >
                     <option value="">Select Category</option>
-                    <option value="Clothes">👕 Clothes</option>
-                    <option value="Accessories">💎 Accessories</option>
-                    <option value="Shoes">👟 Shoes</option>
-                    <option value="Bags">👜 Bags</option>
+                    <option value="Clothes">Clothes</option>
+                    <option value="Accessories">Accessories</option>
+                    <option value="Shoes">Shoes</option>
+                    <option value="Bags">Bags</option>
                   </select>
                 </div>
 

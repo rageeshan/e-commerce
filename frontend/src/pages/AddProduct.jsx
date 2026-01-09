@@ -11,9 +11,10 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const navigate = useNavigate;
+// const navigate = useNavigate;
 
 const AddProduct = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     category: "",
     name: "",
@@ -93,20 +94,19 @@ const AddProduct = () => {
 
       await res.json();
       alert("Product added successfully!");
-
-      // Reset form
-      setFormData({
-        category: "",
-        name: "",
-        price: "",
-        salePrice: "",
-        description: "",
-        stockStatus: "",
-        onSale: false,
-      });
-      setImages([]);
-
       navigate("/adminView");
+
+      // // Reset form
+      // setFormData({
+      //   category: "",
+      //   name: "",
+      //   price: "",
+      //   salePrice: "",
+      //   description: "",
+      //   stockStatus: "",
+      //   onSale: false,
+      // });
+      // setImages([]);
     } catch (error) {
       console.error(error);
       alert("Something went wrong while adding the product!");
@@ -215,10 +215,10 @@ const AddProduct = () => {
                   <option value="" className="text-gray-400">
                     Select Category
                   </option>
-                  <option value="Clothes">👕 Clothes</option>
-                  <option value="Accessories">💎 Accessories</option>
-                  <option value="Shoes">👟 Shoes</option>
-                  <option value="Bags">👜 Bags</option>
+                  <option value="Clothes">Clothes</option>
+                  <option value="Accessories">Accessories</option>
+                  <option value="Shoes">Shoes</option>
+                  <option value="Bags">Bags</option>
                 </select>
               </div>
 
@@ -245,7 +245,7 @@ const AddProduct = () => {
                 </label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-600">
-                    රු
+                    Rs
                   </span>
                   <input
                     type="number"
@@ -278,16 +278,16 @@ const AddProduct = () => {
                     Select Stock Status
                   </option>
                   <option value="Available" className="text-green-700">
-                    ✅ Available
+                    Available
                   </option>
                   <option value="Out of Stock" className="text-red-700">
-                    ❌ Out of Stock
+                    Out of Stock
                   </option>
                   <option value="Limited Stock" className="text-amber-700">
-                    ⚠️ Limited Stock
+                    Limited Stock
                   </option>
                   <option value="Low Stock" className="text-orange-700">
-                    📉 Low Stock
+                    Low Stock
                   </option>
                 </select>
               </div>

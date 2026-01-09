@@ -56,28 +56,6 @@ const Header = () => {
 
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
-            {/* Search Bar */}
-            <form
-              onSubmit={handleSearchSubmit}
-              className="hidden lg:flex items-center bg-gray-50 rounded-full px-4 py-2"
-            >
-              <Search className="w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                onKeyPress={handleKeyPress}
-                placeholder="Search products..."
-                className="ml-2 bg-transparent outline-none text-sm w-48"
-              />
-            </form>
-
-            {/* Search Icon for Mobile */}
-            <button
-              className="lg:hidden p-2"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              <Search className="w-5 h-5 text-gray-700" />
-            </button>
-
             {/* Cart */}
             <button className="relative p-2">
               <ShoppingCart className="w-5 h-5 text-gray-700" />

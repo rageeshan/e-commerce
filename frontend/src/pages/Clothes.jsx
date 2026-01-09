@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Filter, Star, Heart, ShoppingCart } from "lucide-react";
+import { Filter, Heart, ShoppingCart, Eye } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination } from "swiper/modules"; // correct import
+import { Navigation, Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
 const Clothes = () => {
-  const [sortBy, setSortBy] = useState("featured");
-  const [priceRange, setPriceRange] = useState([0, 50000]);
+  const navigate = useNavigate();
+  const [sortBy, setSortBy] = useState("newest");
+  const [priceRange, setPriceRange] = useState([0, 1000000]);
   const [wishlist, setWishlist] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,12 +55,54 @@ const Clothes = () => {
     .filter((p) => p.category === "Clothes")
     .filter((p) => p.price >= priceRange[0] && p.price <= priceRange[1]);
 
+  // Sort products based on selected option
+  const sortedClothesProducts = [...clothesProducts].sort((a, b) => {
+    switch (sortBy) {
+      case "price-low":
+        return (a.salePrice || a.price) - (b.salePrice || b.price);
+      case "price-high":
+        return (b.salePrice || b.price) - (a.salePrice || a.price);
+      case "newest":
+        // Sort by createdAt timestamp if available, otherwise maintain original order
+        if (a.createdAt && b.createdAt) {
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        } else if (a.createdAt) {
+          return -1; // a has createdAt, b doesn't - a comes first
+        } else if (b.createdAt) {
+          return 1; // b has createdAt, a doesn't - b comes first
+        }
+        return 0; // neither has createdAt - maintain original order
+      default:
+        return 0;
+    }
+  });
+
   const toggleWishlist = (productId) => {
     setWishlist((prev) =>
       prev.includes(productId)
         ? prev.filter((id) => id !== productId)
         : [...prev, productId]
     );
+  };
+
+  // Handle View button click
+  const handleViewProduct = (productId, e) => {
+    e.stopPropagation(); // Prevent card click event
+    navigate(`/product/${productId}`);
+  };
+
+  // Handle Add to Cart
+  const handleAddToCart = (product, e) => {
+    e.stopPropagation(); // Prevent card click event
+    console.log("Added to cart:", product._id);
+    alert(`Added ${product.name} to cart!`);
+  };
+
+  // Handle Card Click
+  const handleCardClick = (productId) => {
+    navigate(`/product/${productId}`);
   };
 
   if (loading) {
@@ -127,7 +171,7 @@ const Clothes = () => {
               <div className="flex items-center">
                 <Filter className="w-5 h-5 text-gray-600 mr-2" />
                 <span className="text-gray-700">
-                  {clothesProducts.length} products
+                  {sortedClothesProducts.length} products
                 </span>
               </div>
               <div className="flex items-center space-x-4">
@@ -137,40 +181,39 @@ const Clothes = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                   className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                 >
-                  <option value="featured">Featured</option>
+                  <option value="newest">Newest</option>
                   <option value="price-low">Price: Low to High</option>
                   <option value="price-high">Price: High to Low</option>
-                  <option value="newest">Newest</option>
-                  <option value="rating">Highest Rated</option>
                 </select>
               </div>
             </div>
 
             {/* Products Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {clothesProducts.map((product) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sortedClothesProducts.map((product) => {
                 const images = getProductImages(product);
 
                 return (
                   <div
-                    key={product._id || product.id}
-                    className="group relative overflow-hidden bg-white rounded-xl border border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-xl"
+                    key={product._id}
+                    className="border rounded-xl overflow-hidden hover:shadow-xl transition group cursor-pointer"
+                    onClick={() => handleCardClick(product._id)}
                   >
-                    {/* Swiper Carousel */}
-                    <div className="relative aspect-[3/4]">
+                    {/* Square image container */}
+                    <div className="relative aspect-square bg-gray-50">
                       <Swiper
                         modules={[Navigation, Pagination]}
                         navigation
                         pagination={{ clickable: true }}
                         loop
-                        className="w-full h-full"
+                        className="h-full"
                       >
                         {images.map((img, idx) => (
-                          <SwiperSlide key={idx}>
+                          <SwiperSlide key={idx} className="h-full">
                             <img
                               src={img}
-                              alt={`${product.name} ${idx + 1}`}
-                              className="w-full h-full object-cover rounded-t-xl"
+                              alt={product.name}
+                              className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.target.src =
                                   "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=500&fit=crop";
@@ -180,55 +223,104 @@ const Clothes = () => {
                         ))}
                       </Swiper>
 
-                      {/* Badges */}
-                      <div className="absolute top-3 left-3 flex flex-col gap-2">
-                        {product.isNew && (
-                          <span className="bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg">
-                            NEW
-                          </span>
-                        )}
-                        {product.onSale && product.salePrice && (
-                          <span className="bg-rose-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg">
-                            SALE
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Wishlist */}
                       <button
-                        onClick={() =>
-                          toggleWishlist(product._id || product.id)
-                        }
-                        className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-2.5 rounded-full hover:scale-110 transition-transform duration-300"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleWishlist(product._id);
+                        }}
+                        className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-all z-10"
                       >
                         <Heart
-                          className={`w-5 h-5 ${
-                            wishlist.includes(product._id || product.id)
-                              ? "fill-rose-500 text-rose-500 scale-110"
-                              : "text-gray-700 hover:text-rose-400"
+                          className={`w-5 h-5 transition-colors ${
+                            wishlist.includes(product._id)
+                              ? "fill-rose-500 text-rose-500"
+                              : "text-gray-700 hover:text-rose-500"
                           }`}
                         />
                       </button>
+
+                      {/* Sale badge */}
+                      {product.onSale && (
+                        <div className="absolute top-3 left-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-semibold z-10">
+                          SALE
+                        </div>
+                      )}
+
+                      {/* New badge (if needed) */}
+                      {product.isNew && (
+                        <div className="absolute top-3 left-3 bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-semibold z-10">
+                          NEW
+                        </div>
+                      )}
                     </div>
 
-                    {/* Product Info */}
                     <div className="p-5">
-                      <h3 className="font-semibold text-gray-900 mb-3 line-clamp-1 hover:text-gray-700 transition-colors cursor-pointer">
+                      <h3 className="font-semibold mb-2 text-lg group-hover:text-gray-800 transition-colors">
                         {product.name}
                       </h3>
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                      <p className="text-sm text-gray-500 line-clamp-2 mb-3 min-h-[2.5rem]">
                         {product.description}
-                      </span>
-                      <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                        <span className="text-xl font-bold text-gray-900">
-                          Rs.{" "}
-                          {product.onSale && product.salePrice
-                            ? product.salePrice.toLocaleString()
-                            : product.price.toLocaleString()}
+                      </p>
+
+                      <div className="flex justify-between items-center mt-4">
+                        <div>
+                          <span className="text-lg font-bold text-gray-900">
+                            Rs.{" "}
+                            {product.onSale && product.salePrice
+                              ? product.salePrice.toLocaleString()
+                              : product.price.toLocaleString()}
+                          </span>
+                          {product.onSale && (
+                            <span className="text-sm text-gray-500 line-through ml-2">
+                              Rs. {product.price.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2">
+                          {/* View Button */}
+                          <button
+                            onClick={(e) => handleViewProduct(product._id, e)}
+                            className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition-colors group/view"
+                            title="View Details"
+                          >
+                            <Eye className="w-5 h-5 group-hover/view:scale-110 transition-transform" />
+                          </button>
+
+                          {/* Add to Cart Button */}
+                          <button
+                            onClick={(e) => handleAddToCart(product, e)}
+                            className="bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 transition-colors group/cart"
+                            title="Add to Cart"
+                          >
+                            <ShoppingCart className="w-5 h-5 group-hover/cart:scale-110 transition-transform" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Stock status */}
+                      <div className="mt-3">
+                        <span
+                          className={`text-xs font-medium px-2 py-1 rounded ${
+                            product.stockStatus === "Available"
+                              ? "bg-green-100 text-green-800"
+                              : product.stockStatus === "Out of Stock"
+                              ? "bg-red-100 text-red-800"
+                              : product.stockStatus === "Limited Stock"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-orange-100 text-orange-800"
+                          }`}
+                        >
+                          {product.stockStatus}
                         </span>
-                        <button className="bg-gray-900 text-white p-3 rounded-full hover:bg-gray-800 transition-all duration-300 hover:scale-105 hover:shadow-lg">
-                          <ShoppingCart className="w-5 h-5" />
-                        </button>
+                      </div>
+
+                      {/* Category */}
+                      <div className="mt-2">
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          {product.category}
+                        </span>
                       </div>
                     </div>
                   </div>
