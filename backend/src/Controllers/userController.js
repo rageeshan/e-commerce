@@ -100,8 +100,24 @@ export const loginUser = async (req, res) => {
     // 🔴 Emergency hardcoded admin
     if (email === "admin@gmail.com" && password === "RAGEESHAN2003@") {
       return res.status(200).json({
+        token: "admin-token-123",
         role: "admin",
         message: "Admin login successful",
+        user: {
+          id: "admin001",
+          name: "Admin User",
+          email: "admin@gmail.com",
+          phone: "+91 99999 99999",
+          role: "admin",
+          joinDate: new Date().toISOString(),
+          address: {
+            street: "Admin Street",
+            city: "Admin City",
+            state: "Admin State",
+            pincode: "000000",
+            country: "India",
+          },
+        },
       });
     }
 
@@ -121,9 +137,22 @@ export const loginUser = async (req, res) => {
       });
     }
 
+    // Generate a simple token (in production, use JWT)
+    const token = `user-token-${user._id}-${Date.now()}`;
+
     return res.status(200).json({
+      token: token,
       role: user.role,
       message: "Login successful",
+      user: {
+        id: user._id,
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        phone: user.mobile,
+        address: user.address,
+        joinDate: user.createdAt,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.error("Login error:", error);

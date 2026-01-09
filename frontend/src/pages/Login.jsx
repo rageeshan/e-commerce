@@ -5,9 +5,9 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const navigate = useNavigate();
   const [error, setError] = useState("");
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -28,10 +28,31 @@ const Login = () => {
         return;
       }
 
+      // Store token and user data
+      localStorage.setItem("token", data.token);
+
+      // Ensure we have complete user data
+      const userData = {
+        ...data.user,
+        avatar:
+          data.user.avatar ||
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${
+            data.user.name || data.user.email
+          }`,
+        stats: {
+          totalOrders: 0,
+          totalSpent: 0,
+          pendingOrders: 0,
+          completedOrders: 0,
+        },
+      };
+
+      localStorage.setItem("user", JSON.stringify(userData));
+
       if (data.role === "admin") {
         navigate("/admin");
       } else if (data.role === "user") {
-        navigate("/");
+        navigate("/user");
       } else {
         setError("Unauthorized access");
       }
@@ -55,11 +76,6 @@ const Login = () => {
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          {error && (
-            <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-              {error}
-            </div>
-          )}
           {error && (
             <div className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
               {error}

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   BarChart3,
   ShoppingBag,
@@ -23,50 +24,67 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
+  LogOut,
+  PieChart,
+  Layers,
+  Tag,
+  Truck,
+  MessageSquare,
+  Star,
+  Shield,
+  Settings,
+  Home,
+  ChevronDown,
+  Bell,
 } from "lucide-react";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [adminData, setAdminData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [notificationCount, setNotificationCount] = useState(5);
 
-  // Dashboard Stats
-  const stats = [
+  // Dashboard Stats - Dynamic data
+  const [stats, setStats] = useState([
     {
       title: "Total Revenue",
-      value: "Rs. 1,245,890",
-      change: "+12.5%",
+      value: "Rs. 0",
+      change: "+0%",
       trend: "up",
       icon: <DollarSign className="w-6 h-6" />,
       color: "bg-green-500",
     },
     {
       title: "Total Orders",
-      value: "1,842",
-      change: "+8.2%",
+      value: "0",
+      change: "+0%",
       trend: "up",
       icon: <ShoppingBag className="w-6 h-6" />,
       color: "bg-blue-500",
     },
     {
       title: "Customers",
-      value: "5,429",
-      change: "+15.3%",
+      value: "0",
+      change: "+0%",
       trend: "up",
       icon: <Users className="w-6 h-6" />,
       color: "bg-purple-500",
     },
     {
       title: "Products",
-      value: "342",
-      change: "-2.1%",
+      value: "0",
+      change: "-0%",
       trend: "down",
       icon: <Package className="w-6 h-6" />,
       color: "bg-orange-500",
     },
-  ];
+  ]);
 
   // Recent Orders
-  const recentOrders = [
+  const [recentOrders, setRecentOrders] = useState([
     {
       id: "#ORD001",
       customer: "John Doe",
@@ -107,10 +125,10 @@ const AdminDashboard = () => {
       status: "cancelled",
       payment: "Refunded",
     },
-  ];
+  ]);
 
   // Top Products
-  const topProducts = [
+  const [topProducts, setTopProducts] = useState([
     {
       name: "Classic White T-Shirt",
       category: "Clothes",
@@ -146,10 +164,10 @@ const AdminDashboard = () => {
       revenue: "Rs. 666,633",
       stock: 67,
     },
-  ];
+  ]);
 
   // Recent Customers
-  const recentCustomers = [
+  const [recentCustomers, setRecentCustomers] = useState([
     {
       id: 1,
       name: "John Doe",
@@ -195,7 +213,235 @@ const AdminDashboard = () => {
       totalSpent: "Rs. 15,799",
       joined: "2024-01-13",
     },
-  ];
+  ]);
+
+  // Update dashboard stats with dynamic data - useCallback to memoize
+  const updateDashboardStats = useCallback(() => {
+    // Calculate totals
+    const totalRevenue = recentOrders.reduce((sum, order) => {
+      // Extract numeric value from amount string
+      const amountMatch = order.amount.match(/\d+/g);
+      const amount = amountMatch ? parseInt(amountMatch.join("")) : 0;
+      return sum + amount;
+    }, 0);
+
+    const totalOrders = recentOrders.length;
+    const totalCustomers = recentCustomers.length;
+    const totalProducts = topProducts.length;
+
+    // Update stats
+    setStats([
+      {
+        title: "Total Revenue",
+        value: `Rs. ${totalRevenue.toLocaleString()}`,
+        change: "+12.5%",
+        trend: "up",
+        icon: <DollarSign className="w-6 h-6" />,
+        color: "bg-green-500",
+      },
+      {
+        title: "Total Orders",
+        value: totalOrders.toLocaleString(),
+        change: "+8.2%",
+        trend: "up",
+        icon: <ShoppingBag className="w-6 h-6" />,
+        color: "bg-blue-500",
+      },
+      {
+        title: "Customers",
+        value: totalCustomers.toLocaleString(),
+        change: "+15.3%",
+        trend: "up",
+        icon: <Users className="w-6 h-6" />,
+        color: "bg-purple-500",
+      },
+      {
+        title: "Products",
+        value: totalProducts.toLocaleString(),
+        change: "-2.1%",
+        trend: "down",
+        icon: <Package className="w-6 h-6" />,
+        color: "bg-orange-500",
+      },
+    ]);
+  }, [recentOrders, recentCustomers, topProducts]);
+
+  // Fetch admin data from localStorage and initialize stats
+  useEffect(() => {
+    const fetchAdminData = () => {
+      try {
+        const savedUser = localStorage.getItem("user");
+        const token = localStorage.getItem("token");
+
+        if (!savedUser || !token) {
+          navigate("/login");
+          return;
+        }
+
+        const parsedUser = JSON.parse(savedUser);
+
+        // Verify it's actually an admin
+        if (parsedUser.role !== "admin") {
+          navigate("/user");
+          return;
+        }
+
+        // Set admin data with proper defaults
+        setAdminData({
+          ...parsedUser,
+          name: parsedUser.name || "Admin User",
+          email: parsedUser.email || "admin@stylehub.com",
+          phone: parsedUser.phone || "+94 77 123 4567",
+          avatar:
+            parsedUser.avatar ||
+            `https://api.dicebear.com/7.x/avataaars/svg?seed=${
+              parsedUser.name || "Admin"
+            }`,
+          joinDate:
+            parsedUser.joinDate || new Date().toISOString().split("T")[0],
+        });
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading admin data:", error);
+        navigate("/login");
+      }
+    };
+
+    fetchAdminData();
+  }, [navigate]);
+
+  // Initialize stats after admin data is loaded
+  useEffect(() => {
+    if (!loading && adminData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      updateDashboardStats();
+    }
+  }, [loading, adminData, updateDashboardStats]);
+
+  // Update stats when data changes
+  useEffect(() => {
+    if (adminData) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      updateDashboardStats();
+    }
+  }, [
+    recentOrders,
+    recentCustomers,
+    topProducts,
+    adminData,
+    updateDashboardStats,
+  ]);
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    navigate("/login");
+  };
+
+  // Handle order actions
+  const handleOrderAction = (orderId, action) => {
+    console.log(`${action} order ${orderId}`);
+    // Add your order action logic here
+    switch (action) {
+      case "view":
+        // Navigate to order details
+        break;
+      case "edit":
+        // Edit order
+        break;
+      case "delete":
+        // Delete order
+        setRecentOrders((prev) => prev.filter((order) => order.id !== orderId));
+        break;
+    }
+  };
+
+  // Handle product actions
+  const handleProductAction = (productName, action) => {
+    console.log(`${action} product ${productName}`);
+    // Add your product action logic here
+    switch (action) {
+      case "edit":
+        // Edit product
+        break;
+      case "delete":
+        // Delete product
+        setTopProducts((prev) =>
+          prev.filter((product) => product.name !== productName)
+        );
+        break;
+      case "restock":
+        // Restock product
+        break;
+    }
+  };
+
+  // Handle customer actions
+  const handleCustomerAction = (customerId, action) => {
+    console.log(`${action} customer ${customerId}`);
+    // Add your customer action logic here
+    switch (action) {
+      case "view":
+        // View customer details
+        break;
+      case "edit":
+        // Edit customer
+        break;
+      case "delete":
+        // Delete customer
+        setRecentCustomers((prev) =>
+          prev.filter((customer) => customer.id !== customerId)
+        );
+        break;
+    }
+  };
+
+  // Clear notifications
+  const handleClearNotifications = () => {
+    setNotificationCount(0);
+  };
+
+  // Format date - FIXED: Added error handling
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return "Invalid Date";
+      }
+      return date.toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Invalid Date";
+    }
+  };
+
+  // Filter orders based on search term
+  const filteredOrders = recentOrders.filter(
+    (order) =>
+      order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter customers based on search term
+  const filteredCustomers = recentCustomers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Filter products based on search term
+  const filteredProducts = topProducts.filter(
+    (product) =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -211,6 +457,37 @@ const AdminDashboard = () => {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No admin data state
+  if (!adminData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">
+            Access denied. Please log in as admin.
+          </p>
+          <button
+            onClick={() => navigate("/login")}
+            className="mt-4 bg-gray-900 text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -241,7 +518,9 @@ const AdminDashboard = () => {
                 <h1 className="text-xl font-semibold text-gray-800">
                   Admin Dashboard
                 </h1>
-                <p className="text-sm text-gray-600">Welcome back, Admin</p>
+                <p className="text-sm text-gray-600">
+                  Welcome back, {adminData.name}
+                </p>
               </div>
             </div>
 
@@ -251,12 +530,19 @@ const AdminDashboard = () => {
                 <input
                   type="text"
                   placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-400 focus:border-gray-400"
                 />
               </div>
 
-              <button className="relative p-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full absolute top-2 right-2"></div>
+              <button
+                className="relative p-2"
+                onClick={handleClearNotifications}
+              >
+                {notificationCount > 0 && (
+                  <div className="w-2 h-2 bg-red-500 rounded-full absolute top-2 right-2"></div>
+                )}
                 <svg
                   className="w-6 h-6 text-gray-600"
                   fill="none"
@@ -273,12 +559,55 @@ const AdminDashboard = () => {
               </button>
 
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
+                  <img
+                    src={adminData.avatar}
+                    alt={adminData.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
                 <div>
                   <p className="text-sm font-medium text-gray-800">
-                    Admin User
+                    {adminData.name}
                   </p>
-                  <p className="text-xs text-gray-600">admin@stylehub.com</p>
+                  <p className="text-xs text-gray-600">{adminData.email}</p>
+                </div>
+                {/* Dropdown Menu */}
+                <div className="relative group">
+                  <button className="p-1 hover:bg-gray-100 rounded">
+                    <svg
+                      className="w-4 h-4 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 hidden group-hover:block z-50">
+                    <div className="py-1">
+                      <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                        <User className="w-4 h-4 mr-2" />
+                        Profile
+                      </button>
+                      <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                        <Settings className="w-4 h-4 mr-2" />
+                        Settings
+                      </button>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center"
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -316,7 +645,7 @@ const AdminDashboard = () => {
             <Package className="w-5 h-5 mr-3" />
             Products
             <span className="ml-auto bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
-              342
+              {stats[3].value}
             </span>
           </button>
 
@@ -331,7 +660,7 @@ const AdminDashboard = () => {
             <ShoppingBag className="w-5 h-5 mr-3" />
             Orders
             <span className="ml-auto bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
-              1,842
+              {stats[1].value}
             </span>
           </button>
 
@@ -346,7 +675,7 @@ const AdminDashboard = () => {
             <Users className="w-5 h-5 mr-3" />
             Customers
             <span className="ml-auto bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded-full">
-              5,429
+              {stats[2].value}
             </span>
           </button>
 
@@ -394,6 +723,47 @@ const AdminDashboard = () => {
             </svg>
             Settings
           </button>
+
+          {/* Admin Info Section */}
+          <div className="pt-8 mt-8 border-t border-gray-200 px-4">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden">
+                <img
+                  src={adminData.avatar}
+                  alt={adminData.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  {adminData.name}
+                </p>
+                <p className="text-xs text-gray-600">Administrator</p>
+              </div>
+            </div>
+            <div className="space-y-2 text-xs text-gray-600">
+              {adminData.phone && (
+                <div className="flex items-center">
+                  <Phone className="w-3 h-3 mr-2" />
+                  <span>{adminData.phone}</span>
+                </div>
+              )}
+              <div className="flex items-center">
+                <Mail className="w-3 h-3 mr-2" />
+                <span>{adminData.email}</span>
+              </div>
+              {adminData.joinDate && (
+                <div className="flex items-center">
+                  <Calendar className="w-3 h-3 mr-2" />
+                  <span>Joined {formatDate(adminData.joinDate)}</span>
+                </div>
+              )}
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                <span>Online</span>
+              </div>
+            </div>
+          </div>
         </nav>
       </aside>
 
@@ -404,12 +774,56 @@ const AdminDashboard = () => {
         }`}
       >
         <div className="p-6">
+          {/* Admin Welcome Banner */}
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-8 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">
+                    Welcome back, {adminData.name.split(" ")[0]}!
+                  </h2>
+                  <p className="text-gray-300 mb-4">
+                    You have{" "}
+                    {
+                      recentOrders.filter((o) => o.status === "processing")
+                        .length
+                    }{" "}
+                    pending orders and {notificationCount} notifications.
+                  </p>
+                  <div className="flex items-center space-x-4 text-sm">
+                    <div className="flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      <span>Administrator</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Mail className="w-4 h-4 mr-2" />
+                      <span>{adminData.email}</span>
+                    </div>
+                    {adminData.phone && (
+                      <div className="flex items-center">
+                        <Phone className="w-4 h-4 mr-2" />
+                        <span>{adminData.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white/20">
+                  <img
+                    src={adminData.avatar}
+                    alt={adminData.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {stats.map((stat, index) => (
               <div
                 key={index}
-                className="bg-white rounded-xl border border-gray-200 p-6"
+                className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -466,7 +880,12 @@ const AdminDashboard = () => {
               <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg">
                 <div className="text-center">
                   <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Sales chart will appear here</p>
+                  <p className="text-gray-500">
+                    Total Revenue: {stats[0].value}
+                  </p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    {recentOrders.length} orders this month
+                  </p>
                 </div>
               </div>
             </div>
@@ -477,7 +896,10 @@ const AdminDashboard = () => {
                 <h2 className="text-lg font-semibold text-gray-900">
                   Recent Orders
                 </h2>
-                <button className="text-sm text-gray-600 hover:text-gray-900">
+                <button
+                  onClick={() => setActiveTab("orders")}
+                  className="text-sm text-gray-600 hover:text-gray-900"
+                >
                   View All →
                 </button>
               </div>
@@ -495,7 +917,7 @@ const AdminDashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {recentOrders.map((order, index) => (
+                    {filteredOrders.map((order, index) => (
                       <tr
                         key={index}
                         className="border-b border-gray-100 hover:bg-gray-50"
@@ -506,7 +928,9 @@ const AdminDashboard = () => {
                           </span>
                         </td>
                         <td className="py-4">{order.customer}</td>
-                        <td className="py-4 text-gray-600">{order.date}</td>
+                        <td className="py-4 text-gray-600">
+                          {formatDate(order.date)}
+                        </td>
                         <td className="py-4 font-medium">{order.amount}</td>
                         <td className="py-4">
                           <span
@@ -519,9 +943,40 @@ const AdminDashboard = () => {
                           </span>
                         </td>
                         <td className="py-4">
-                          <button className="text-gray-400 hover:text-gray-600">
-                            <MoreVertical className="w-5 h-5" />
-                          </button>
+                          <div className="relative group">
+                            <button className="text-gray-400 hover:text-gray-600">
+                              <MoreVertical className="w-5 h-5" />
+                            </button>
+                            <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 hidden group-hover:block z-10">
+                              <button
+                                onClick={() =>
+                                  handleOrderAction(order.id, "view")
+                                }
+                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleOrderAction(order.id, "edit")
+                                }
+                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleOrderAction(order.id, "delete")
+                                }
+                                className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </button>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -546,10 +1001,10 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-4">
-                {topProducts.map((product, index) => (
+                {filteredProducts.map((product, index) => (
                   <div
                     key={index}
-                    className="flex items-center p-3 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center p-3 hover:bg-gray-50 rounded-lg group"
                   >
                     <div className="w-12 h-12 bg-gray-200 rounded-lg mr-4"></div>
                     <div className="flex-1">
@@ -583,6 +1038,26 @@ const AdminDashboard = () => {
                         </span>
                       )}
                     </div>
+                    <div className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() =>
+                            handleProductAction(product.name, "edit")
+                          }
+                          className="p-1 text-blue-600 hover:text-blue-800"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleProductAction(product.name, "delete")
+                          }
+                          className="p-1 text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -601,10 +1076,10 @@ const AdminDashboard = () => {
               </div>
 
               <div className="space-y-4">
-                {recentCustomers.map((customer) => (
+                {filteredCustomers.map((customer) => (
                   <div
                     key={customer.id}
-                    className="flex items-center p-3 hover:bg-gray-50 rounded-lg"
+                    className="flex items-center p-3 hover:bg-gray-50 rounded-lg group"
                   >
                     <div className="w-10 h-10 bg-gray-300 rounded-full mr-4"></div>
                     <div className="flex-1">
@@ -620,9 +1095,17 @@ const AdminDashboard = () => {
                       <p className="text-sm text-gray-600">
                         {customer.orders} orders
                       </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Joined {formatDate(customer.joined)}
+                      </p>
                     </div>
-                    <div className="ml-4">
-                      <button className="p-1 text-gray-400 hover:text-gray-600">
+                    <div className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() =>
+                          handleCustomerAction(customer.id, "view")
+                        }
+                        className="p-1 text-gray-400 hover:text-gray-600"
+                      >
                         <Eye className="w-5 h-5" />
                       </button>
                     </div>
