@@ -444,7 +444,7 @@ const AdminProductView = () => {
                     >
                       {product.stockStatus === "Available" && ""}
                       {product.stockStatus === "Out of Stock" && ""}
-                      {product.stockStatus === "Limited Stock" && "A"}
+                      {product.stockStatus === "Limited Stock" && ""}
                       {product.stockStatus}
                     </span>
                     <div className="flex gap-2">
@@ -640,7 +640,7 @@ const AdminProductView = () => {
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600">
-                      රු
+                      Rs
                     </span>
                     <input
                       type="number"
