@@ -99,11 +99,10 @@ const Accessories = () => {
     navigate(`/product/${productId}`);
   };
 
-  // Handle Add to Cart
+  // Handle Add to Cart — navigate to product page where size can be selected
   const handleAddToCart = (product, e) => {
-    e.stopPropagation(); // Prevent card click event
-    console.log("Added to cart:", product._id);
-    alert(`Added ${product.name} to cart!`);
+    e.stopPropagation();
+    navigate(`/product/${product._id}`);
   };
 
   // Handle Card Click

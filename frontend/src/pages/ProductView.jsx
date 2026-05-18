@@ -22,18 +22,20 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/thumbs";
 import "swiper/css/free-mode";
+import { useCart } from "../context/CartContext";
+import toast from "react-hot-toast";
 
 const ProductView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToCart } = useCart();
   const [product, setProduct] = useState(null);
   const [similarProducts, setSimilarProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [wishlist, setWishlist] = useState([]);
   const [thumbsSwiper, setThumbsSwiper] = useState(null);
-  //   const [selectedSize, setSelectedSize] = useState(null);
-  //   const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedSize, setSelectedSize] = useState(null);
 
   // Fetch product details
   useEffect(() => {
@@ -86,7 +88,10 @@ const ProductView = () => {
   };
 
   const increaseQuantity = () => {
-    setQuantity((prev) => prev + 1);
+    const maxQty = selectedSize
+      ? product.sizeAvailability?.[selectedSize]?.quantity ?? 99
+      : 99;
+    setQuantity((prev) => Math.min(prev + 1, maxQty));
   };
 
   const decreaseQuantity = () => {
@@ -95,36 +100,29 @@ const ProductView = () => {
     }
   };
 
+  // Reset quantity when size changes
+  const handleSizeSelect = (size) => {
+    setSelectedSize(size);
+    setQuantity(1);
+  };
+
   const handleAddToCart = () => {
-    // Add to cart logic here
-    console.log("Added to cart:", {
-      productId: product._id,
-      name: product.name,
-      quantity,
-      price:
-        product.onSale && product.salePrice ? product.salePrice : product.price,
-      total:
-        (product.onSale && product.salePrice
-          ? product.salePrice
-          : product.price) * quantity,
-    });
-    alert(`Added ${quantity} ${product.name} to cart!`);
+    if (!selectedSize) {
+      toast.error("Please select a size first!");
+      return;
+    }
+    addToCart(product, selectedSize, quantity);
   };
 
   const handleBuyNow = () => {
-    // Buy now logic here
-    console.log("Buy now:", {
-      productId: product._id,
-      name: product.name,
-      quantity,
-      price:
-        product.onSale && product.salePrice ? product.salePrice : product.price,
-      total:
-        (product.onSale && product.salePrice
-          ? product.salePrice
-          : product.price) * quantity,
-    });
-    alert(`Proceeding to checkout with ${quantity} ${product.name}!`);
+    if (!selectedSize) {
+      toast.error("Please select a size first!");
+      return;
+    }
+    const added = addToCart(product, selectedSize, quantity);
+    if (added) {
+      navigate("/cart");
+    }
   };
 
   if (loading) {
@@ -327,6 +325,60 @@ const ProductView = () => {
               </span>
             </div>
 
+            {/* Size Selector */}
+            {product.sizes && product.sizes.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Size</h3>
+                  {!selectedSize && (
+                    <span className="text-sm text-red-500 font-medium">
+                      Please select a size
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {product.sizes.map((size) => {
+                    const sizeData = product.sizeAvailability?.[size];
+                    const inStock = sizeData?.available && sizeData?.quantity > 0;
+                    const isSelected = selectedSize === size;
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => inStock && handleSizeSelect(size)}
+                        disabled={!inStock}
+                        title={
+                          inStock
+                            ? `${sizeData.quantity} in stock`
+                            : "Out of stock"
+                        }
+                        className={`relative px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
+                          isSelected
+                            ? "border-gray-900 bg-gray-900 text-white"
+                            : inStock
+                            ? "border-gray-200 hover:border-gray-900 text-gray-700"
+                            : "border-gray-100 text-gray-300 cursor-not-allowed line-through"
+                        }`}
+                      >
+                        {size}
+                        {inStock && sizeData.quantity <= 5 && !isSelected && (
+                          <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-white text-[9px] font-bold rounded-full px-1">
+                            {sizeData.quantity}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedSize && (
+                  <p className="text-sm text-gray-500">
+                    {product.sizeAvailability?.[selectedSize]?.quantity} units
+                    available in size {selectedSize}
+                  </p>
+                )}
+              </div>
+            )}
+
+
             {/* Quantity Selector */}
             <div className="space-y-3">
               <h3 className="text-lg font-semibold text-gray-900">Quantity</h3>
@@ -344,14 +396,24 @@ const ProductView = () => {
                   </span>
                   <button
                     onClick={increaseQuantity}
-                    className="px-4 py-3 text-gray-600 hover:text-gray-900"
+                    className="px-4 py-3 text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={
+                      selectedSize
+                        ? quantity >=
+                          (product.sizeAvailability?.[selectedSize]?.quantity ?? 1)
+                        : false
+                    }
                   >
                     <Plus className="w-5 h-5" />
                   </button>
                 </div>
-                <div className="text-sm text-gray-500">
-                  Only {product.stockQuantity || "many"} items left
-                </div>
+                {selectedSize && (
+                  <div className="text-sm text-gray-500">
+                    Max:{" "}
+                    {product.sizeAvailability?.[selectedSize]?.quantity ?? 0} in
+                    stock
+                  </div>
+                )}
               </div>
             </div>
 

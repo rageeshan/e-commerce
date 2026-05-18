@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import { Search, ShoppingBag, ShoppingCart, User, Menu, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCart } from "../context/CartContext";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { cartCount } = useCart();
 
   const navItems = [
     { name: "Clothes", href: "/clothes" },
@@ -57,11 +59,17 @@ const Header = () => {
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
             {/* Cart */}
-            <button className="relative p-2">
+            <button
+              className="relative p-2"
+              onClick={() => navigate("/cart")}
+              title="View Cart"
+            >
               <ShoppingCart className="w-5 h-5 text-gray-700" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                3
-              </span>
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
             </button>
 
             {/* Account */}
