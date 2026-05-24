@@ -73,15 +73,6 @@ const Header = () => {
               )}
             </button>
 
-            {/* Track Order */}
-            <button
-              className="p-2"
-              onClick={() => navigate("/track")}
-              title="Track Order"
-            >
-              <Truck className="w-5 h-5 text-gray-700" />
-            </button>
-
             {/* Account */}
             <button
               className="p-2"
