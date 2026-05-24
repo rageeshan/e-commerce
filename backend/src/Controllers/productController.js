@@ -92,7 +92,7 @@ export async function createProduct(req, res) {
 
     // Parse salePrice only if onSale is true and salePrice exists
     let parsedSalePrice;
-    if (isOnSale && salePrice && salePrice.trim() !== "") {
+    if (isOnSale && salePrice !== undefined && salePrice !== null && String(salePrice).trim() !== "") {
       parsedSalePrice = parseFloat(salePrice);
       if (isNaN(parsedSalePrice) || parsedSalePrice <= 0) {
         return res.status(400).json({
@@ -172,7 +172,7 @@ export async function updateProduct(req, res) {
 
     // Parse salePrice only if onSale is true and salePrice exists
     let parsedSalePrice;
-    if (isOnSale && salePrice && salePrice.trim() !== "") {
+    if (isOnSale && salePrice !== undefined && salePrice !== null && String(salePrice).trim() !== "") {
       parsedSalePrice = parseFloat(salePrice);
       if (isNaN(parsedSalePrice) || parsedSalePrice <= 0) {
         return res.status(400).json({
@@ -252,35 +252,28 @@ export async function updateProduct(req, res) {
       });
     }
 
-    // Prepare update fields
-    const updatedFields = {
-      category,
-      name,
-      price: parsedPrice,
-      description,
-      onSale: isOnSale,
-      sizes: parsedSizes,
-      sizeAvailability: updatedSizeAvailability,
-    };
+      // ALGORITHM: Fetch-then-save so Mongoose validators have access to the
+      // full document context (e.g. this.category in the sizes validator).
+      const product = await Product.findById(req.params.id);
+      if (!product) return res.status(404).json({ message: "Product not found!" });
 
-    // Only set salePrice if onSale is true and we have a valid sale price
-    if (isOnSale && parsedSalePrice) {
-      updatedFields.salePrice = parsedSalePrice;
-    } else {
-      // If not on sale, explicitly set to undefined to clear it
-      updatedFields.salePrice = undefined;
-    }
+      // Apply all updated fields directly on the document
+      product.category = category;
+      product.name = name;
+      product.price = parsedPrice;
+      product.description = description;
+      product.onSale = isOnSale;
+      product.sizes = parsedSizes;
+      product.sizeAvailability = updatedSizeAvailability;
 
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      updatedFields,
-      { new: true, runValidators: true }
-    );
+      if (isOnSale && parsedSalePrice) {
+        product.salePrice = parsedSalePrice;
+      } else {
+        product.salePrice = undefined;
+      }
 
-    if (!updatedProduct)
-      return res.status(404).json({ message: "Product not found!" });
-
-    res.status(200).json(updatedProduct);
+      const savedProduct = await product.save();
+      res.status(200).json(savedProduct);
   } catch (error) {
     console.error("Error in updateProduct:", error);
     res.status(500).json({

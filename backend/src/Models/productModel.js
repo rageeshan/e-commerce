@@ -94,11 +94,17 @@ const productSchema = new mongoose.Schema(
 );
 
 /* ---------------- STOCK CALCULATION ---------------- */
-
-function calculateStockStatus(total) {
-  if (total === 0) return "Out of Stock";
-  if (total <= 5) return "Low Stock";
-  if (total <= 10) return "Limited Stock";
+//
+// Rules (applied in priority order):
+//  1. No sizes defined OR total stock = 0  → Out of Stock
+//  2. Product is on sale                   → Limited Stock
+//  3. Total stock < 10                     → Limited Stock
+//  4. Otherwise                            → Available
+//
+function calculateStockStatus(total, onSale, hasSizes) {
+  if (!hasSizes || total === 0) return "Out of Stock";
+  if (onSale) return "Limited Stock";
+  if (total < 10) return "Limited Stock";
   return "Available";
 }
 
@@ -130,7 +136,11 @@ productSchema.pre("save", function () {
   }
 
   this.totalStock = total;
-  this.stockStatus = calculateStockStatus(total);
+  this.stockStatus = calculateStockStatus(
+    total,
+    this.onSale,
+    this.sizes && this.sizes.length > 0
+  );
 });
 
 /* ---------------- INSTANCE METHODS ---------------- */

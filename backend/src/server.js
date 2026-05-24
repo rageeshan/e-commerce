@@ -1,6 +1,7 @@
 import express from "express";
 import { connectDB } from "./Config/db.js";
 import productRoute from "./Routes/productRoute.js";
+import orderRoute from "./Routes/orderRoute.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
@@ -22,6 +23,7 @@ app.use(express.json()); //Middleware
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.use("/api/products", productRoute);
+app.use("/api/orders", orderRoute);
 
 connectDB().then(() => {
   app.listen(PORT, () => {

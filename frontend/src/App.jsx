@@ -8,10 +8,12 @@ import Accessories from "./pages/Accessories";
 import Shoes from "./pages/Shoes";
 import Bags from "./pages/Bags";
 import Sale from "./pages/Sale";
-import AddProduct from "./pages/AddProduct";
 import AdminProductView from "./pages/AdminProductView";
-import ProductView from "./pages/productView";
+import ProductView from "./pages/ProductView";
 import CartPage from "./pages/CartPage";
+import Checkout from "./pages/Checkout";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
 
 const App = () => {
   return (
@@ -22,10 +24,12 @@ const App = () => {
       <Route path="/shoes" element={<Shoes />} />
       <Route path="/bags" element={<Bags />} />
       <Route path="/sale" element={<Sale />} />
-      <Route path="/addProduct" element={<AddProduct />} />
-      <Route path="/adminView" element={<AdminProductView />} />
+      <Route path="/admin" element={<AdminProductView />} />
       <Route path="/product/:id" element={<ProductView />} />
       <Route path="/cart" element={<CartPage />} />
+      <Route path="/checkout" element={<Checkout />} />
+      <Route path="/payment/success" element={<PaymentSuccess />} />
+      <Route path="/payment/cancel" element={<PaymentCancel />} />
       {/* <Route path="/signup" element={<SignUp />} /> */}
     </Routes>
   );

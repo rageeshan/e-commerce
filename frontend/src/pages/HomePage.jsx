@@ -189,9 +189,8 @@ const HomePage = () => {
           {heroSlides.map((slide, index) => (
             <div
               key={slide.id}
-              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                index === currentSlide ? "opacity-100" : "opacity-0"
-              }`}
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${index === currentSlide ? "opacity-100" : "opacity-0"
+                }`}
               style={{
                 backgroundImage: `url(${slide.image})`,
                 backgroundSize: "cover",
@@ -235,11 +234,10 @@ const HomePage = () => {
               <button
                 key={index}
                 onClick={() => setCurrentSlide(index)}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  index === currentSlide
+                className={`w-2 h-2 rounded-full transition-all ${index === currentSlide
                     ? "bg-white w-8"
                     : "bg-white/50 hover:bg-white/70"
-                }`}
+                  }`}
               />
             ))}
           </div>
@@ -341,11 +339,10 @@ const HomePage = () => {
                         className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-all z-10"
                       >
                         <Heart
-                          className={`w-5 h-5 transition-colors ${
-                            wishlist.includes(product._id)
+                          className={`w-5 h-5 transition-colors ${wishlist.includes(product._id)
                               ? "fill-rose-500 text-rose-500"
                               : "text-gray-700 hover:text-rose-500"
-                          }`}
+                            }`}
                         />
                       </button>
 
@@ -410,15 +407,14 @@ const HomePage = () => {
                       {/* Stock status */}
                       <div className="mt-3">
                         <span
-                          className={`text-xs font-medium px-2 py-1 rounded ${
-                            product.stockStatus === "Available"
+                          className={`text-xs font-medium px-2 py-1 rounded ${product.stockStatus === "Available"
                               ? "bg-green-100 text-green-800"
                               : product.stockStatus === "Out of Stock"
-                              ? "bg-red-100 text-red-800"
-                              : product.stockStatus === "Limited Stock"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-orange-100 text-orange-800"
-                          }`}
+                                ? "bg-red-100 text-red-800"
+                                : product.stockStatus === "Limited Stock"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-orange-100 text-orange-800"
+                            }`}
                         >
                           {product.stockStatus}
                         </span>
@@ -455,11 +451,9 @@ const HomePage = () => {
               {offers.map((offer, index) => (
                 <div
                   key={offer.id}
-                  className={`absolute inset-0 ${
-                    offer.bgColor
-                  } transition-opacity duration-700 ease-in-out rounded-2xl ${
-                    index === currentOfferSlide ? "opacity-100" : "opacity-0"
-                  }`}
+                  className={`absolute inset-0 ${offer.bgColor
+                    } transition-opacity duration-700 ease-in-out rounded-2xl ${index === currentOfferSlide ? "opacity-100" : "opacity-0"
+                    }`}
                 >
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
                     <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">
@@ -499,11 +493,10 @@ const HomePage = () => {
                 <button
                   key={index}
                   onClick={() => setCurrentOfferSlide(index)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    index === currentOfferSlide
+                  className={`w-2 h-2 rounded-full transition-all ${index === currentOfferSlide
                       ? "bg-white w-8"
                       : "bg-white/50 hover:bg-white/70"
-                  }`}
+                    }`}
                 />
               ))}
             </div>

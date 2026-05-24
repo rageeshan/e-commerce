@@ -240,11 +240,10 @@ const Shoes = () => {
                         className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm p-2 rounded-full hover:bg-white transition-all z-10"
                       >
                         <Heart
-                          className={`w-5 h-5 transition-colors ${
-                            wishlist.includes(product._id)
+                          className={`w-5 h-5 transition-colors ${wishlist.includes(product._id)
                               ? "fill-rose-500 text-rose-500"
                               : "text-gray-700 hover:text-rose-500"
-                          }`}
+                            }`}
                         />
                       </button>
 
@@ -304,15 +303,14 @@ const Shoes = () => {
                       {/* Stock status */}
                       <div className="mt-3">
                         <span
-                          className={`text-xs font-medium px-2 py-1 rounded ${
-                            product.stockStatus === "Available"
+                          className={`text-xs font-medium px-2 py-1 rounded ${product.stockStatus === "Available"
                               ? "bg-green-100 text-green-800"
                               : product.stockStatus === "Out of Stock"
-                              ? "bg-red-100 text-red-800"
-                              : product.stockStatus === "Limited Stock"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-orange-100 text-orange-800"
-                          }`}
+                                ? "bg-red-100 text-red-800"
+                                : product.stockStatus === "Limited Stock"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-orange-100 text-orange-800"
+                            }`}
                         >
                           {product.stockStatus}
                         </span>

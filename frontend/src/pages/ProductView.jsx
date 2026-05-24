@@ -44,15 +44,17 @@ const ProductView = () => {
         const res = await axios.get(`http://localhost:5001/api/products/${id}`);
         setProduct(res.data);
 
-        // Fetch similar products from same category
         const allProductsRes = await axios.get(
-          "http://localhost:5001/api/products"
+          "http://localhost:5001/api/products?limit=100"
         );
-        const similar = allProductsRes.data
+        const allProducts = Array.isArray(allProductsRes.data)
+          ? allProductsRes.data
+          : (allProductsRes.data.products || []);
+        const similar = allProducts
           .filter(
             (p) => p.category === res.data.category && p._id !== res.data._id
           )
-          .slice(0, 4); // Show 4 similar products
+          .slice(0, 4);
         setSimilarProducts(similar);
       } catch (err) {
         console.error("Failed to fetch product:", err);
@@ -152,6 +154,7 @@ const ProductView = () => {
   }
 
   const images = getProductImages(product);
+  const isOutOfStock = product.stockStatus === "Out of Stock";
   const discount =
     product.onSale && product.salePrice
       ? Math.round(((product.price - product.salePrice) / product.price) * 100)
@@ -308,15 +311,14 @@ const ProductView = () => {
             {/* Stock Status */}
             <div>
               <span
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                  product.stockStatus === "Available"
-                    ? "bg-green-100 text-green-800"
-                    : product.stockStatus === "Out of Stock"
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${product.stockStatus === "Available"
+                  ? "bg-green-100 text-green-800"
+                  : product.stockStatus === "Out of Stock"
                     ? "bg-red-100 text-red-800"
                     : product.stockStatus === "Limited Stock"
-                    ? "bg-yellow-100 text-yellow-800"
-                    : "bg-orange-100 text-orange-800"
-                }`}
+                      ? "bg-yellow-100 text-yellow-800"
+                      : "bg-orange-100 text-orange-800"
+                  }`}
               >
                 {product.stockStatus === "Available" && (
                   <Check className="w-4 h-4 mr-1" />
@@ -351,13 +353,12 @@ const ProductView = () => {
                             ? `${sizeData.quantity} in stock`
                             : "Out of stock"
                         }
-                        className={`relative px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${
-                          isSelected
-                            ? "border-gray-900 bg-gray-900 text-white"
-                            : inStock
+                        className={`relative px-4 py-2 rounded-lg border-2 text-sm font-medium transition-all ${isSelected
+                          ? "border-gray-900 bg-gray-900 text-white"
+                          : inStock
                             ? "border-gray-200 hover:border-gray-900 text-gray-700"
                             : "border-gray-100 text-gray-300 cursor-not-allowed line-through"
-                        }`}
+                          }`}
                       >
                         {size}
                         {inStock && sizeData.quantity <= 5 && !isSelected && (
@@ -400,7 +401,7 @@ const ProductView = () => {
                     disabled={
                       selectedSize
                         ? quantity >=
-                          (product.sizeAvailability?.[selectedSize]?.quantity ?? 1)
+                        (product.sizeAvailability?.[selectedSize]?.quantity ?? 1)
                         : false
                     }
                   >
@@ -421,27 +422,34 @@ const ProductView = () => {
             <div className="flex flex-col sm:flex-row gap-4 pt-6">
               <button
                 onClick={handleAddToCart}
-                className="flex-1 bg-gray-900 text-white py-4 px-8 rounded-lg font-medium hover:bg-gray-800 transition-colors flex items-center justify-center"
+                disabled={isOutOfStock}
+                className={`flex-1 py-4 px-8 rounded-lg font-medium flex items-center justify-center transition-colors ${isOutOfStock
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-gray-900 text-white hover:bg-gray-800"
+                  }`}
               >
                 <ShoppingCart className="w-5 h-5 mr-3" />
-                Add to Cart
+                {isOutOfStock ? "Out of Stock" : "Add to Cart"}
               </button>
               <button
                 onClick={handleBuyNow}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-8 rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-colors"
+                disabled={isOutOfStock}
+                className={`flex-1 py-4 px-8 rounded-lg font-medium transition-colors ${isOutOfStock
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                  }`}
               >
-                Buy Now
+                {isOutOfStock ? "Unavailable" : "Buy Now"}
               </button>
               <button
                 onClick={() => toggleWishlist(product._id)}
                 className="px-6 py-4 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors"
               >
                 <Heart
-                  className={`w-6 h-6 ${
-                    wishlist.includes(product._id)
-                      ? "fill-rose-500 text-rose-500"
-                      : "text-gray-700"
-                  }`}
+                  className={`w-6 h-6 ${wishlist.includes(product._id)
+                    ? "fill-rose-500 text-rose-500"
+                    : "text-gray-700"
+                    }`}
                 />
               </button>
               <button className="px-6 py-4 border border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
@@ -455,24 +463,9 @@ const ProductView = () => {
                 Product Information
               </h3>
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Category</p>
-                  <p className="font-medium">{product.category}</p>
+                <div className="col-span-2">
+                  <p className="font-medium text-gray-700 leading-relaxed">{product.description}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Stock Status</p>
-                  <p className="font-medium">{product.stockStatus}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">On Sale</p>
-                  <p className="font-medium">{product.onSale ? "Yes" : "No"}</p>
-                </div>
-                {product.material && (
-                  <div>
-                    <p className="text-sm text-gray-500">Material</p>
-                    <p className="font-medium">{product.material}</p>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -490,10 +483,10 @@ const ProductView = () => {
                 const similarDiscount =
                   similarProduct.onSale && similarProduct.salePrice
                     ? Math.round(
-                        ((similarProduct.price - similarProduct.salePrice) /
-                          similarProduct.price) *
-                          100
-                      )
+                      ((similarProduct.price - similarProduct.salePrice) /
+                        similarProduct.price) *
+                      100
+                    )
                     : 0;
 
                 return (

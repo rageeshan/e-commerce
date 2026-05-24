@@ -280,7 +280,9 @@ const CartPage = () => {
                 </div>
               </div>
 
-              <button className="w-full mt-6 bg-gray-900 text-white py-4 rounded-xl font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
+              <button
+                onClick={() => navigate("/checkout")}
+                className="w-full mt-6 bg-gray-900 text-white py-4 rounded-xl font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2">
                 <ShoppingBag className="w-5 h-5" />
                 Proceed to Checkout
               </button>
