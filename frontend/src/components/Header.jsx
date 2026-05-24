@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Search, ShoppingBag, ShoppingCart, User, Menu, X } from "lucide-react";
+import { Search, ShoppingBag, ShoppingCart, User, Menu, X, Truck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 
@@ -14,6 +14,7 @@ const Header = () => {
     { name: "Shoes", href: "/shoes" },
     { name: "Bags", href: "/bags" },
     { name: "Sale", href: "/sale" },
+    { name: "Track", href: "/track" },
   ];
 
   const handleSearchSubmit = (e) => {
@@ -72,6 +73,15 @@ const Header = () => {
               )}
             </button>
 
+            {/* Track Order */}
+            <button
+              className="p-2"
+              onClick={() => navigate("/track")}
+              title="Track Order"
+            >
+              <Truck className="w-5 h-5 text-gray-700" />
+            </button>
+
             {/* Account */}
             <button
               className="p-2"
@@ -109,6 +119,15 @@ const Header = () => {
                   {item.name}
                 </a>
               ))}
+              <button
+                onClick={() => {
+                  navigate("/track");
+                  setIsMenuOpen(false);
+                }}
+                className="text-gray-700 hover:text-gray-900 font-medium py-2 text-left"
+              >
+                Track Order
+              </button>
               <button
                 onClick={() => {
                   navigate("/signup");
