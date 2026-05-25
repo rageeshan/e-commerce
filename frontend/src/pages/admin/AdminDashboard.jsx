@@ -282,7 +282,7 @@ const AdminDashboard = () => {
 
         // Verify it's actually an admin
         if (parsedUser.role !== "admin") {
-          navigate("/user");
+          navigate("/login");
           return;
         }
 
@@ -595,7 +595,9 @@ const AdminDashboard = () => {
                         <User className="w-4 h-4 mr-2" />
                         Profile
                       </button>
-                      <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                      <button 
+                        onClick={() => setActiveTab("settings")}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
                         <Settings className="w-4 h-4 mr-2" />
                         Settings
                       </button>
@@ -701,7 +703,14 @@ const AdminDashboard = () => {
             </p>
           </div>
 
-          <button className="flex items-center w-full px-4 py-3 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50">
+          <button 
+            onClick={() => setActiveTab("settings")}
+            className={`flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg ${
+              activeTab === "settings"
+                ? "bg-gray-100 text-gray-900"
+                : "text-gray-600 hover:bg-gray-50"
+            }`}
+          >
             <svg
               className="w-5 h-5 mr-3"
               fill="none"
@@ -774,6 +783,76 @@ const AdminDashboard = () => {
         }`}
       >
         <div className="p-6">
+          {activeTab === "settings" ? (
+            <div className="max-w-2xl mx-auto">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Settings</h2>
+              
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const currentPassword = e.target.currentPassword.value;
+                    const newPassword = e.target.newPassword.value;
+                    
+                    if (newPassword.length < 6) {
+                      toast.error("New password must be at least 6 characters");
+                      return;
+                    }
+
+                    try {
+                      const res = await fetch("http://localhost:5001/api/user/change-password", {
+                        method: "POST",
+                        headers: {
+                          "Content-Type": "application/json",
+                          "Authorization": `Bearer ${localStorage.getItem("token")}`
+                        },
+                        body: JSON.stringify({ currentPassword, newPassword })
+                      });
+                      
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.message || "Failed to change password");
+                      
+                      toast.success("Password updated successfully! Please log in again.");
+                      e.target.reset();
+                      handleLogout();
+                    } catch (error) {
+                      toast.error(error.message);
+                    }
+                  }} 
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">Current Password</label>
+                    <input
+                      name="currentPassword"
+                      type="password"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-700 mb-1">New Password</label>
+                    <input
+                      name="newPassword"
+                      type="password"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-gray-400 focus:border-gray-400"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded font-medium text-sm transition-colors"
+                  >
+                    Update Password
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : (
+            <>
           {/* Admin Welcome Banner */}
           <div className="mb-8">
             <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-8 text-white">
@@ -1137,6 +1216,8 @@ const AdminDashboard = () => {
               <p className="text-green-100">+Rs. 542 from last month</p>
             </div>
           </div>
+          </>
+          )}
         </div>
       </main>
     </div>

@@ -55,16 +55,29 @@ const userSchema = mongoose.Schema(
       required: true,
     },
 
-    role: {
-      type: String,
-      enum: ["user", "admin"],
-      default: "user",
+
+
+    isVerified: {
+      type: Boolean,
+      default: false,
     },
 
-    // isBlocked: {
-    //   type: Boolean,
-    //   default: false,
-    // },
+    otp: {
+      type: String,
+    },
+
+    otpExpires: {
+      type: Date,
+    },
+
+    resetOtp: {
+      type: String,
+    },
+
+    resetOtpExpires: {
+      type: Date,
+    },
+
   },
   {
     timestamps: true, // adds createdAt & updatedAt
