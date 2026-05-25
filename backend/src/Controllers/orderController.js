@@ -3,6 +3,7 @@ import multer from "multer";
 import { getCloudinary } from "../Config/cloudinary.js";
 import Order from "../Models/orderModel.js";
 import Product from "../Models/productModel.js";
+import { sendOrderConfirmationEmail, sendOrderShippedEmail, sendOrderCancelledEmail } from "../Services/emailService.js";
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const SHIPPING_COSTS = { standard: 350, express: 850 };
@@ -107,6 +108,9 @@ export const createOrder = async (req, res) => {
       await reduceStock(items);
       order.stockReduced = true;
       await order.save();
+
+      // Send confirmation email for COD orders
+      await sendOrderConfirmationEmail(order);
     }
 
     res.status(201).json({ message: "Order created", order });
@@ -191,6 +195,9 @@ export const confirmStripePayment = async (req, res) => {
     // Reduce stock after card payment confirmed
     await reduceStock(order.items);
 
+    // Send confirmation email after Stripe payment
+    await sendOrderConfirmationEmail(order);
+
     res.status(200).json({ message: "Payment confirmed", order });
   } catch (error) {
     console.error("confirmStripePayment error:", error);
@@ -237,6 +244,9 @@ export const uploadReceipt = (req, res) => {
       // Reduce stock after receipt submitted
       await reduceStock(order.items);
 
+      // Send confirmation email for bank transfer orders after receipt upload
+      await sendOrderConfirmationEmail(order);
+
       res.status(200).json({
         message: "Receipt uploaded successfully",
         receiptUrl: uploadResult.secure_url,
@@ -263,11 +273,31 @@ export const getAllOrders = async (req, res) => {
 
 /* ─────────────────────────────────────────────
    GET /api/orders/:id
+   Supports full MongoDB _id  OR  the 8-char short display ID
+   shown in emails (last 8 chars of _id, uppercase, e.g. "A1B0149F")
    ───────────────────────────────────────────── */
 export const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: "Order not found" });
+    const raw = req.params.id.trim().replace(/^#/, ""); // strip leading '#' if present
+
+    // 1) Try exact MongoDB ObjectId lookup first
+    let order = null;
+    if (/^[a-f0-9]{24}$/i.test(raw)) {
+      order = await Order.findById(raw);
+    }
+
+    // 2) Fallback: match by 8-char short display ID (last 8 chars of _id, case-insensitive)
+    if (!order && raw.length === 8) {
+      const all = await Order.find({}).select("_id").lean();
+      const matched = all.find(
+        (o) => o._id.toString().slice(-8).toUpperCase() === raw.toUpperCase()
+      );
+      if (matched) {
+        order = await Order.findById(matched._id);
+      }
+    }
+
+    if (!order) return res.status(404).json({ message: "Order not found. Please check your Order ID." });
     res.status(200).json(order);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch order", error: error.message });
@@ -300,6 +330,14 @@ export const updateOrderStatus = async (req, res) => {
 
     existing.status = status;
     await existing.save();
+
+    // Send email based on new status
+    if (status === "shipped") {
+      await sendOrderShippedEmail(existing);
+    } else if (status === "cancelled") {
+      await sendOrderCancelledEmail(existing);
+    }
+
     res.status(200).json({ message: "Status updated", order: existing });
   } catch (error) {
     res.status(500).json({ message: "Failed to update status", error: error.message });
@@ -329,6 +367,12 @@ export const updatePaymentStatus = async (req, res) => {
     order.paymentStatus = paymentStatus;
     if (paymentStatus === "cancelled") order.status = "cancelled";
     await order.save();
+
+    // Send cancellation email when payment is declined/cancelled
+    if (paymentStatus === "cancelled") {
+      await sendOrderCancelledEmail(order);
+    }
+
     res.status(200).json({ message: "Payment status updated", order });
   } catch (error) {
     res.status(500).json({ message: "Failed to update payment status", error: error.message });

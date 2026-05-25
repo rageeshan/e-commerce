@@ -138,7 +138,8 @@ export default function TrackOrder() {
 
   const handleTrack = async (e) => {
     e.preventDefault();
-    const id = orderId.trim();
+    // Strip leading '#' so users can paste "#A1B0149F" directly from the email
+    const id = orderId.trim().replace(/^#/, "");
     if (!id) return;
 
     setLoading(true);
