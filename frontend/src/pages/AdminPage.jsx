@@ -17,7 +17,6 @@ import {
   Layers,
   Home,
   ShoppingBag,
-  Users,
   Settings,
   LogOut,
   Menu,
@@ -105,6 +104,11 @@ const AdminPage = () => {
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
   const [verifyingOrderId, setVerifyingOrderId] = useState(null);
 
+  // Analytics State
+  const [financialReport, setFinancialReport] = useState(null);
+  const [analyticsPeriod, setAnalyticsPeriod] = useState("daily");
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   // Add Product Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
@@ -174,7 +178,7 @@ const AdminPage = () => {
       setLoading(true);
       const res = await fetch("http://localhost:5001/api/products?limit=100");
       const data = await res.json();
-      setProducts(Array.isArray(data) ? data : (data.products || []));
+      setProducts([...(Array.isArray(data) ? data : (data.products || []))]);
     } catch (error) {
       console.error("❌ Fetch error:", error);
       showToast("Failed to fetch products", "error");
@@ -241,10 +245,31 @@ const AdminPage = () => {
     }
   };
 
+  // Fetch Financial Report
+  const fetchFinancialReport = async (period) => {
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch(`http://localhost:5001/api/orders/financial-report?period=${period}`);
+      const data = await res.json();
+      setFinancialReport(data);
+    } catch (e) {
+      console.error(e);
+      showToast("Failed to fetch financial report", "error");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
     fetchOrders();
+    fetchFinancialReport("daily");
   }, []);
+
+  // Re-fetch when analytics period changes
+  useEffect(() => {
+    fetchFinancialReport(analyticsPeriod);
+  }, [analyticsPeriod]);
 
   // Add Product - Update available sizes when category changes
   useEffect(() => {
@@ -442,6 +467,34 @@ const AdminPage = () => {
     images.forEach(img => URL.revokeObjectURL(img.preview));
   };
 
+  const downloadOrderDetails = () => {
+    const rows = orders.map(order => ({
+      OrderID: `#${order._id.slice(-8).toUpperCase()}`,
+      Customer: `${order.firstName} ${order.lastName}`,
+      Email: order.email,
+      Amount: order.totalAmount,
+      Status: order.status,
+      Payment: order.paymentStatus,
+      Date: new Date(order.createdAt).toLocaleString(),
+    }));
+
+    const csvContent = [
+      Object.keys(rows[0]).join(","),
+      ...rows.map(row => Object.values(row).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "orders-report.csv";
+    link.click();
+  };
+
   // Handle form input changes for update modal
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -473,6 +526,16 @@ const AdminPage = () => {
     });
     setIsModalOpen(true);
   };
+
+  const totalProductsSold = orders.reduce((total, order) => {
+    return (
+      total +
+      (order.items?.reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      ) || 0)
+    );
+  }, 0);
 
   // Open size management modal
   const openSizeModal = (product) => {
@@ -683,6 +746,16 @@ const AdminPage = () => {
     setIsDeleteOpen(false);
   };
 
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const recentOrders = orders
+    .filter(order => {
+      const orderDate = new Date(order.createdAt);
+      const now = new Date();
+      return (now - orderDate) / (1000 * 60 * 60) <= 24;
+    })
+    .slice(0, 5);
+
   // Filter and sort products
   const filteredProducts = products
     .filter(
@@ -708,6 +781,15 @@ const AdminPage = () => {
     const matchStatus = filterStatus === "all" || order.status === filterStatus;
     return matchSearch && matchStatus;
   });
+
+  //Refresh
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchProducts();
+    setRefreshing(false);
+  };
 
   // Get categories for filter
   const categories = [...new Set(products.map((p) => p.category))];
@@ -743,10 +825,14 @@ const AdminPage = () => {
 
   // Calculate dashboard stats
   const totalStock = products.reduce((total, product) => total + calculateTotalStock(product), 0);
-  const totalValue = products.reduce((total, product) => {
-    const price = product.onSale ? product.salePrice : product.price;
-    return total + (price * calculateTotalStock(product));
-  }, 0);
+  const totalIncome = orders
+    .filter(
+      o =>
+        o.status !== "cancelled" &&
+        (o.paymentStatus === "verified" ||
+          o.paymentStatus === "cod")
+    )
+    .reduce((sum, order) => sum + order.totalAmount, 0);
   const lowStockProducts = products.filter(p => calculateTotalStock(p) > 0 && calculateTotalStock(p) < 10).length;
 
   // Orders stats
@@ -755,7 +841,7 @@ const AdminPage = () => {
     confirmed: orders.filter(o => o.status === "confirmed").length,
     processing: orders.filter(o => o.status === "processing").length,
     shipped: orders.filter(o => o.status === "shipped").length,
-    revenue: orders.filter(o => o.status !== "cancelled" && (o.paymentStatus === "verified" || o.paymentStatus === "cod")).reduce((s, o) => s + o.totalAmount, 0),
+    income: orders.filter(o => o.status !== "cancelled" && (o.paymentStatus === "verified" || o.paymentStatus === "cod")).reduce((s, o) => s + o.totalAmount, 0),
   };
 
   const addTotalStock = calculateTotalStockForAdd();
@@ -765,7 +851,6 @@ const AdminPage = () => {
     { id: "dashboard", label: "Dashboard", icon: Home, color: "text-indigo-500" },
     { id: "products", label: "Products", icon: ShoppingBag, color: "text-emerald-500" },
     { id: "orders", label: "Orders", icon: ShoppingCart, color: "text-blue-500" },
-    { id: "customers", label: "Customers", icon: Users, color: "text-purple-500" },
     { id: "analytics", label: "Analytics", icon: BarChart3, color: "text-amber-500" },
     { id: "settings", label: "Settings", icon: Settings, color: "text-gray-500" },
   ];
@@ -862,8 +947,7 @@ const AdminPage = () => {
                 {activeTab === "products" ? "Product Management" :
                   activeTab === "dashboard" ? "Dashboard Overview" :
                     activeTab === "orders" ? "Order Management" :
-                      activeTab === "customers" ? "Customer Management" :
-                        activeTab === "analytics" ? "Analytics" : "Settings"}
+                      activeTab === "analytics" ? "Analytics" : "Settings"}
               </h1>
               <p className="text-slate-500 text-sm mt-0.5">
                 {activeTab === "products" ? "Manage your store inventory and track stock levels" :
@@ -872,13 +956,55 @@ const AdminPage = () => {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <button className="p-2 hover:bg-slate-100 rounded-xl transition-colors relative">
-                <Bell size={20} className="text-slate-500" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              <button className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                <Mail size={20} className="text-slate-500" />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2 hover:bg-slate-100 rounded-xl transition-colors relative"
+                >
+                  <Bell size={20} className="text-slate-500" />
+
+                  {recentOrders.length > 0 && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50">
+                    <div className="p-4 border-b border-slate-100">
+                      <h3 className="font-semibold text-slate-800">
+                        New Orders
+                      </h3>
+                    </div>
+
+                    <div className="max-h-80 overflow-y-auto">
+                      {recentOrders.length === 0 ? (
+                        <p className="p-4 text-sm text-slate-500">
+                          No new orders
+                        </p>
+                      ) : (
+                        recentOrders.map(order => (
+                          <button
+                            key={order._id}
+                            onClick={() => {
+                              setActiveTab("orders");
+                              setShowNotifications(false);
+                            }}
+                            className="w-full text-left p-4 hover:bg-slate-50 border-b border-slate-50"
+                          >
+                            <p className="font-medium text-sm text-slate-800">
+                              {order.firstName} {order.lastName}
+                            </p>
+
+                            <p className="text-xs text-slate-500">
+                              Rs {order.totalAmount?.toLocaleString()}
+                            </p>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -893,12 +1019,14 @@ const AdminPage = () => {
                   <p className="text-indigo-100 mb-4">Here's your store performance overview for today</p>
                   <div className="flex gap-4">
                     <div className="bg-white/20 rounded-xl px-4 py-2 backdrop-blur-sm">
-                      <p className="text-xs text-indigo-100">Total Revenue</p>
-                      <p className="text-xl font-bold">Rs {totalValue.toLocaleString("si-LK")}</p>
+                      <p className="text-xs text-indigo-100">Total Income</p>
+                      <p className="text-xl font-bold">Rs {totalIncome.toLocaleString("si-LK")}</p>
                     </div>
                     <div className="bg-white/20 rounded-xl px-4 py-2 backdrop-blur-sm">
                       <p className="text-xs text-indigo-100">Products Sold</p>
-                      <p className="text-xl font-bold">1,234</p>
+                      <p className="text-xl font-bold">
+                        {totalProductsSold.toLocaleString()}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -964,25 +1092,49 @@ const AdminPage = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
                 <h3 className="font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                  <PieChart size={18} className="text-indigo-500" />
-                  Category Distribution
+                  <Clock size={18} className="text-indigo-500" />
+                  Recent Orders
                 </h3>
+
                 <div className="space-y-3">
-                  {categories.map(cat => {
-                    const count = products.filter(p => p.category === cat).length;
-                    const percentage = (count / products.length * 100).toFixed(0);
-                    return (
-                      <div key={cat}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="text-slate-600">{cat}</span>
-                          <span className="font-medium text-slate-700">{count} items ({percentage}%)</span>
+                  {orders
+                    .filter(order => {
+                      const orderDate = new Date(order.createdAt);
+                      const now = new Date();
+
+                      return (
+                        (now - orderDate) /
+                        (1000 * 60 * 60 * 24) <=
+                        2
+                      );
+                    })
+                    .slice(0, 5)
+                    .map(order => (
+                      <div
+                        key={order._id}
+                        className="flex justify-between items-center p-3 bg-slate-50 rounded-xl"
+                      >
+                        <div>
+                          <p className="font-medium text-slate-800 text-sm">
+                            {order.firstName} {order.lastName}
+                          </p>
+
+                          <p className="text-xs text-slate-500">
+                            #{order._id.slice(-8).toUpperCase()}
+                          </p>
                         </div>
-                        <div className="w-full bg-slate-100 rounded-full h-2">
-                          <div className="bg-indigo-500 h-2 rounded-full transition-all" style={{ width: `${percentage}%` }}></div>
+
+                        <div className="text-right">
+                          <p className="font-semibold text-slate-800">
+                            Rs {order.totalAmount?.toLocaleString()}
+                          </p>
+
+                          <p className="text-xs text-slate-500 capitalize">
+                            {order.status}
+                          </p>
                         </div>
                       </div>
-                    );
-                  })}
+                    ))}
                 </div>
               </div>
               <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-5">
@@ -1091,8 +1243,12 @@ const AdminPage = () => {
                     <Plus size={18} />
                     Add Product
                   </button>
-                  <button onClick={fetchProducts} className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
-                    <RefreshCw size={16} />
+                  <button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
                   </button>
                 </div>
               </div>
@@ -1277,7 +1433,7 @@ const AdminPage = () => {
                 { label: "Confirmed", value: ordersStats.confirmed, icon: <CheckCircle className="w-5 h-5 text-blue-600" />, bg: "bg-blue-50" },
                 { label: "Processing", value: ordersStats.processing, icon: <Clock className="w-5 h-5 text-amber-600" />, bg: "bg-amber-50" },
                 { label: "Shipped", value: ordersStats.shipped, icon: <Truck className="w-5 h-5 text-purple-600" />, bg: "bg-purple-50" },
-                { label: "Revenue", value: `Rs ${ordersStats.revenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5 text-emerald-600" />, bg: "bg-emerald-50" },
+                { label: "Income", value: `Rs ${ordersStats.income.toLocaleString()}`, icon: <DollarSign className="w-5 h-5 text-emerald-600" />, bg: "bg-emerald-50" },
               ].map(s => (
                 <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm">
                   <div className={`p-2.5 rounded-xl ${s.bg}`}>{s.icon}</div>
@@ -1310,6 +1466,14 @@ const AdminPage = () => {
               </select>
               <button onClick={fetchOrders} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
                 <RefreshCw className="w-4 h-4" /> Refresh
+              </button>
+
+              <button
+                onClick={downloadOrderDetails}
+                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700"
+              >
+                <Download className="w-4 h-4" />
+                Export
               </button>
             </div>
 
@@ -1422,8 +1586,294 @@ const AdminPage = () => {
           </div>
         )}
 
+        {activeTab === "analytics" && (
+          <div className="p-6 space-y-6">
+            {/* Period Selector */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex bg-white rounded-xl border border-slate-200 p-1 shadow-sm">
+                {["daily", "weekly", "monthly"].map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setAnalyticsPeriod(p)}
+                    className={`px-5 py-2 rounded-lg text-sm font-semibold capitalize transition-all duration-200 ${analyticsPeriod === p
+                      ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md"
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                      }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => fetchFinancialReport(analyticsPeriod)}
+                  className="flex items-center gap-2 px-4 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors text-sm"
+                >
+                  <RefreshCw size={16} className={analyticsLoading ? "animate-spin" : ""} />
+                  Refresh
+                </button>
+                <button
+                  onClick={() => {
+                    if (!financialReport?.data) return;
+                    const rows = financialReport.data.map(d => ({
+                      Period: d.period,
+                      Orders: d.orders,
+                      Income: d.revenue,
+                      ProductsSold: d.productsSold,
+                    }));
+                    const s = financialReport.summary;
+                    const csvContent = [
+                      Object.keys(rows[0]).join(","),
+                      ...rows.map(r => Object.values(r).join(",")),
+                      "",
+                      "Summary",
+                      `Total Income,${s.totalRevenue}`,
+                      `Total Orders,${s.totalOrders}`,
+                      `Total Products Sold,${s.totalProductsSold}`,
+                      `Avg Order Value,${s.avgOrderValue.toFixed(2)}`,
+                    ].join("\n");
+                    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = `financial-report-${analyticsPeriod}-${new Date().toISOString().slice(0, 10)}.csv`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  disabled={!financialReport?.data}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all text-sm shadow-sm disabled:opacity-50"
+                >
+                  <Download size={16} />
+                  Download {analyticsPeriod.charAt(0).toUpperCase() + analyticsPeriod.slice(1)} Report
+                </button>
+              </div>
+            </div>
+
+            {/* Summary KPI Cards */}
+            {financialReport?.summary && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "Total Income", value: `Rs ${financialReport.summary.totalRevenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5 text-emerald-600" />, bg: "bg-emerald-50", color: "text-emerald-700" },
+                  { label: "Total Orders", value: financialReport.summary.totalOrders.toLocaleString(), icon: <ShoppingCart className="w-5 h-5 text-indigo-600" />, bg: "bg-indigo-50", color: "text-indigo-700" },
+                  { label: "Products Sold", value: financialReport.summary.totalProductsSold.toLocaleString(), icon: <Package className="w-5 h-5 text-purple-600" />, bg: "bg-purple-50", color: "text-purple-700" },
+                  { label: "Avg Order Value", value: `Rs ${financialReport.summary.avgOrderValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: <TrendingUp className="w-5 h-5 text-amber-600" />, bg: "bg-amber-50", color: "text-amber-700" },
+                ].map(s => (
+                  <div key={s.label} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`p-2.5 rounded-xl ${s.bg}`}>{s.icon}</div>
+                    </div>
+                    <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                    <p className="text-xs text-slate-400 mt-1">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Income Chart */}
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="animate-spin w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+              </div>
+            ) : financialReport?.data && (() => {
+              const chartData = analyticsPeriod === "daily"
+                ? financialReport.data.slice(-7)
+                : analyticsPeriod === "weekly"
+                  ? financialReport.data.slice(-4)
+                  : analyticsPeriod === "monthly"
+                    ? financialReport.data.slice(-6)
+                    : financialReport.data;
+              const maxRevenue = Math.max(...chartData.map(d => d.revenue), 1);
+              const maxOrders = Math.max(...chartData.map(d => d.orders), 1);
+              const chartHeight = 260;
+              const barWidth = Math.max(8, Math.min(32, 600 / chartData.length - 4));
+
+              const formatLabel = (period) => {
+                if (analyticsPeriod === "daily") {
+                  const d = new Date(period + "T00:00:00");
+                  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                } else if (analyticsPeriod === "weekly") {
+                  const d = new Date(period + "T00:00:00");
+                  return `W${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+                } else {
+                  const d = new Date(period + "-01T00:00:00");
+                  return d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+                }
+              };
+
+              // Horizontal grid lines
+              const gridLines = 5;
+              const gridValues = Array.from({ length: gridLines + 1 }, (_, i) =>
+                Math.round((maxRevenue / gridLines) * i)
+              );
+
+              return (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                  {/* Income Bar Chart */}
+                  <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                        <BarChart3 size={18} className="text-indigo-500" />
+                        Income Overview
+                      </h3>
+                      <span className="text-xs text-slate-400 capitalize">{analyticsPeriod} view</span>
+                    </div>
+                    <div className="relative" style={{ height: chartHeight + 50 }}>
+                      {/* Y-axis grid lines */}
+                      {gridValues.map((val, i) => (
+                        <div
+                          key={i}
+                          className="absolute left-12 right-0 border-t border-slate-100"
+                          style={{ top: chartHeight - (val / maxRevenue) * chartHeight }}
+                        >
+                          <span className="absolute -left-12 -top-2 text-xs text-slate-400 w-10 text-right">
+                            {val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                          </span>
+                        </div>
+                      ))}
+                      {/* Bars */}
+                      <div className="absolute left-12 right-0 bottom-8 flex items-end justify-around" style={{ height: chartHeight }}>
+                        {chartData.map((d, i) => {
+                          const barH = maxRevenue > 0 ? (d.revenue / maxRevenue) * chartHeight : 0;
+                          return (
+                            <div key={i} className="flex flex-col items-center group relative" style={{ width: barWidth + 8 }}>
+                              {/* Tooltip */}
+                              <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-10">
+                                <div className="bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
+                                  <p className="font-semibold">Rs {d.revenue.toLocaleString()}</p>
+                                  <p className="text-slate-300">{d.orders} orders · {d.productsSold} items</p>
+                                </div>
+                                <div className="w-2 h-2 bg-slate-800 rotate-45 -mt-1"></div>
+                              </div>
+                              <div
+                                className="rounded-t-md transition-all duration-500 ease-out hover:opacity-80"
+                                style={{
+                                  width: barWidth,
+                                  height: Math.max(barH, 2),
+                                  background: `linear-gradient(to top, #6366f1, #a78bfa)`,
+                                }}
+                              />
+                              <span
+                                className="text-xs text-slate-400 mt-2 truncate"
+                                style={{ fontSize: chartData.length > 15 ? 9 : 11, maxWidth: barWidth + 12 }}
+                              >
+                                {formatLabel(d.period)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Orders Bar Chart */}
+                  <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                        <ShoppingCart size={18} className="text-emerald-500" />
+                        Orders Overview
+                      </h3>
+                      <span className="text-xs text-slate-400 capitalize">{analyticsPeriod} view</span>
+                    </div>
+                    <div className="relative" style={{ height: chartHeight + 50 }}>
+                      {/* Y-axis grid lines */}
+                      {Array.from({ length: gridLines + 1 }, (_, i) =>
+                        Math.round((maxOrders / gridLines) * i)
+                      ).map((val, i) => (
+                        <div
+                          key={i}
+                          className="absolute left-12 right-0 border-t border-slate-100"
+                          style={{ top: chartHeight - (val / maxOrders) * chartHeight }}
+                        >
+                          <span className="absolute -left-12 -top-2 text-xs text-slate-400 w-10 text-right">
+                            {val}
+                          </span>
+                        </div>
+                      ))}
+                      {/* Bars */}
+                      <div className="absolute left-12 right-0 bottom-8 flex items-end justify-around" style={{ height: chartHeight }}>
+                        {chartData.map((d, i) => {
+                          const barH = maxOrders > 0 ? (d.orders / maxOrders) * chartHeight : 0;
+                          return (
+                            <div key={i} className="flex flex-col items-center group relative" style={{ width: barWidth + 8 }}>
+                              {/* Tooltip */}
+                              <div className="absolute bottom-full mb-2 hidden group-hover:flex flex-col items-center z-10">
+                                <div className="bg-slate-800 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
+                                  <p className="font-semibold">{d.orders} orders</p>
+                                  <p className="text-slate-300">Rs {d.revenue.toLocaleString()}</p>
+                                </div>
+                                <div className="w-2 h-2 bg-slate-800 rotate-45 -mt-1"></div>
+                              </div>
+                              <div
+                                className="rounded-t-md transition-all duration-500 ease-out hover:opacity-80"
+                                style={{
+                                  width: barWidth,
+                                  height: Math.max(barH, 2),
+                                  background: `linear-gradient(to top, #10b981, #6ee7b7)`,
+                                }}
+                              />
+                              <span
+                                className="text-xs text-slate-400 mt-2 truncate"
+                                style={{ fontSize: chartData.length > 15 ? 9 : 11, maxWidth: barWidth + 12 }}
+                              >
+                                {formatLabel(d.period)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Detailed Data Table */}
+            {financialReport?.data && (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-slate-100">
+                  <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                    <FileText size={18} className="text-slate-500" />
+                    Detailed Breakdown
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="text-left py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Period</th>
+                        <th className="text-right py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Orders</th>
+                        <th className="text-right py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Income</th>
+                        <th className="text-right py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Products Sold</th>
+                        <th className="text-right py-3 px-5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Avg / Order</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {financialReport.data.filter(d => d.orders > 0).map((d, i) => (
+                        <tr key={i} className="border-t border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 px-5 text-sm font-medium text-slate-700">{d.period}</td>
+                          <td className="py-3 px-5 text-sm text-right text-slate-600">{d.orders}</td>
+                          <td className="py-3 px-5 text-sm text-right font-semibold text-emerald-700">Rs {d.revenue.toLocaleString()}</td>
+                          <td className="py-3 px-5 text-sm text-right text-slate-600">{d.productsSold}</td>
+                          <td className="py-3 px-5 text-sm text-right text-slate-500">
+                            Rs {d.orders > 0 ? (d.revenue / d.orders).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 0}
+                          </td>
+                        </tr>
+                      ))}
+                      {financialReport.data.filter(d => d.orders > 0).length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-12 text-center text-slate-400 text-sm">No order data for this period</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Placeholder for other tabs */}
-        {(activeTab === "customers" || activeTab === "analytics" || activeTab === "settings") && (
+        {(activeTab === "settings") && (
           <div className="p-6">
             <div className="bg-white rounded-xl p-12 text-center shadow-sm">
               <div className="w-20 h-20 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -1866,6 +2316,6 @@ const AdminPage = () => {
 
 // Missing icons
 const Bell = ({ size, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg>;
-const Mail = ({ size, className }) => <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>;
+
 
 export default AdminPage;

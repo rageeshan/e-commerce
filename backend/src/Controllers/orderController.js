@@ -370,32 +370,34 @@ export const getFinancialReport = async (req, res) => {
   try {
     const { period = "daily" } = req.query;
 
-    // Fetch all non-cancelled, paid orders
     const paidOrders = await Order.find({
       status: { $ne: "cancelled" },
       paymentStatus: { $in: ["verified", "cod"] },
     }).sort({ createdAt: 1 });
 
-    // Determine group-by format
     const getKey = (date) => {
       const d = new Date(date);
       if (period === "daily") {
-        return d.toISOString().slice(0, 10); // YYYY-MM-DD
+        return d.toISOString().slice(0, 10);
       } else if (period === "weekly") {
-        // ISO week: get Monday of the week
-        const day = d.getDay(); // 0=Sun
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        // Get Monday of the week (Mon–Sun grouping)
+        const day = d.getDay(); // 0=Sun, 1=Mon...
+        const diff = day === 0 ? -6 : 1 - day; // shift to Monday
         const monday = new Date(d);
-        monday.setDate(diff);
-        return monday.toISOString().slice(0, 10); // Week starting Monday
+        monday.setDate(d.getDate() + diff);
+        monday.setHours(0, 0, 0, 0);
+        return monday.toISOString().slice(0, 10);
+      } else if (period === "monthly") {
+        // Group by YYYY-MM (1st to last day of month)
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       } else {
-        return d.toISOString().slice(0, 7); // YYYY-MM
+        return `${d.getFullYear()}`;
       }
     };
 
-    // Determine range to show (last 30 days / 12 weeks / 12 months)
     const now = new Date();
     const rangeKeys = [];
+
     if (period === "daily") {
       for (let i = 29; i >= 0; i--) {
         const d = new Date(now);
@@ -403,22 +405,33 @@ export const getFinancialReport = async (req, res) => {
         rangeKeys.push(d.toISOString().slice(0, 10));
       }
     } else if (period === "weekly") {
+      // Get the Monday of the current week
+      const currentDay = now.getDay();
+      const diffToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+      const thisMonday = new Date(now);
+      thisMonday.setDate(now.getDate() + diffToMonday);
+      thisMonday.setHours(0, 0, 0, 0);
+
+      // Generate last 12 Mondays (each represents a Mon–Sun week)
       for (let i = 11; i >= 0; i--) {
-        const d = new Date(now);
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-        d.setDate(diff - i * 7);
-        rangeKeys.push(d.toISOString().slice(0, 10));
+        const monday = new Date(thisMonday);
+        monday.setDate(thisMonday.getDate() - i * 7);
+        rangeKeys.push(monday.toISOString().slice(0, 10));
       }
-    } else {
+    } else if (period === "monthly") {
+      // Generate last 12 months, each key is YYYY-MM (1st of month)
       for (let i = 11; i >= 0; i--) {
-        const d = new Date(now);
-        d.setMonth(d.getMonth() - i);
-        rangeKeys.push(d.toISOString().slice(0, 7));
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        rangeKeys.push(
+          `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+        );
+      }
+    } else if (period === "yearly") {
+      for (let i = 5; i >= 0; i--) {
+        rangeKeys.push(`${now.getFullYear() - i}`);
       }
     }
 
-    // Aggregate data
     const grouped = {};
     rangeKeys.forEach((k) => {
       grouped[k] = { period: k, orders: 0, revenue: 0, productsSold: 0 };
@@ -435,7 +448,6 @@ export const getFinancialReport = async (req, res) => {
 
     const data = rangeKeys.map((k) => grouped[k]);
 
-    // Summary KPIs
     const totalRevenue = paidOrders.reduce((s, o) => s + o.totalAmount, 0);
     const totalOrders = paidOrders.length;
     const totalProductsSold = paidOrders.reduce(

@@ -76,7 +76,7 @@ const Header = () => {
             {/* Account */}
             <button
               className="p-2"
-              onClick={() => navigate("/signup")}
+              onClick={() => navigate("/login")}
               title="Sign Up / Log In"
             >
               <User className="w-5 h-5 text-gray-700" />
@@ -121,7 +121,7 @@ const Header = () => {
               </button>
               <button
                 onClick={() => {
-                  navigate("/signup");
+                  navigate("/login");
                   setIsMenuOpen(false);
                 }}
                 className="text-gray-700 hover:text-gray-900 font-medium py-2 text-left"
