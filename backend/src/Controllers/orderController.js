@@ -348,6 +348,113 @@ export const updateOrderStatus = async (req, res) => {
    PATCH /api/orders/:id/payment-status
    Admin verifies bank transfer payment
    ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────
+   GET /api/orders/recent  — Orders in last 2 days
+   ───────────────────────────────────────────── */
+export const getRecentOrders = async (req, res) => {
+  try {
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    const orders = await Order.find({ createdAt: { $gte: twoDaysAgo } }).sort({ createdAt: -1 });
+    res.status(200).json(orders);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch recent orders", error: error.message });
+  }
+};
+
+/* ─────────────────────────────────────────────
+   GET /api/orders/financial-report
+   Query params: period = daily | weekly | monthly
+   Returns grouped revenue data + summary KPIs
+   ───────────────────────────────────────────── */
+export const getFinancialReport = async (req, res) => {
+  try {
+    const { period = "daily" } = req.query;
+
+    // Fetch all non-cancelled, paid orders
+    const paidOrders = await Order.find({
+      status: { $ne: "cancelled" },
+      paymentStatus: { $in: ["verified", "cod"] },
+    }).sort({ createdAt: 1 });
+
+    // Determine group-by format
+    const getKey = (date) => {
+      const d = new Date(date);
+      if (period === "daily") {
+        return d.toISOString().slice(0, 10); // YYYY-MM-DD
+      } else if (period === "weekly") {
+        // ISO week: get Monday of the week
+        const day = d.getDay(); // 0=Sun
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(d);
+        monday.setDate(diff);
+        return monday.toISOString().slice(0, 10); // Week starting Monday
+      } else {
+        return d.toISOString().slice(0, 7); // YYYY-MM
+      }
+    };
+
+    // Determine range to show (last 30 days / 12 weeks / 12 months)
+    const now = new Date();
+    const rangeKeys = [];
+    if (period === "daily") {
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        rangeKeys.push(d.toISOString().slice(0, 10));
+      }
+    } else if (period === "weekly") {
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        d.setDate(diff - i * 7);
+        rangeKeys.push(d.toISOString().slice(0, 10));
+      }
+    } else {
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now);
+        d.setMonth(d.getMonth() - i);
+        rangeKeys.push(d.toISOString().slice(0, 7));
+      }
+    }
+
+    // Aggregate data
+    const grouped = {};
+    rangeKeys.forEach((k) => {
+      grouped[k] = { period: k, orders: 0, revenue: 0, productsSold: 0 };
+    });
+
+    paidOrders.forEach((order) => {
+      const key = getKey(order.createdAt);
+      if (grouped[key]) {
+        grouped[key].orders += 1;
+        grouped[key].revenue += order.totalAmount;
+        grouped[key].productsSold += order.items.reduce((s, i) => s + i.quantity, 0);
+      }
+    });
+
+    const data = rangeKeys.map((k) => grouped[k]);
+
+    // Summary KPIs
+    const totalRevenue = paidOrders.reduce((s, o) => s + o.totalAmount, 0);
+    const totalOrders = paidOrders.length;
+    const totalProductsSold = paidOrders.reduce(
+      (s, o) => s + o.items.reduce((si, i) => si + i.quantity, 0),
+      0
+    );
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+    res.status(200).json({
+      period,
+      data,
+      summary: { totalRevenue, totalOrders, totalProductsSold, avgOrderValue },
+    });
+  } catch (error) {
+    console.error("getFinancialReport error:", error);
+    res.status(500).json({ message: "Failed to generate report", error: error.message });
+  }
+};
+
 export const updatePaymentStatus = async (req, res) => {
   try {
     const { paymentStatus } = req.body;
