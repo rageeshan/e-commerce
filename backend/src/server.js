@@ -3,6 +3,7 @@ import express from "express";
 import { connectDB } from "./Config/db.js";
 import productRoute from "./Routes/productRoute.js";
 import orderRoute from "./Routes/orderRoute.js";
+import userRoute from "./Routes/userRoute.js";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
