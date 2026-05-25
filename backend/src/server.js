@@ -1,4 +1,4 @@
-import "dotenv/config";
+import dotenv from "dotenv";
 import express from "express";
 import userRoute from "./Routes/userRoute.js";
 import { connectDB } from "./Config/db.js";

@@ -87,6 +87,8 @@ const PAYMENT_ICONS = {
 const STATUSES = ["confirmed", "processing", "shipped", "cancelled"];
 
 const AdminPage = () => {
+  const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -189,6 +191,33 @@ const AdminPage = () => {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: "", type: "" }), 5001);
   };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    showToast("Logged out successfully");
+    navigate("/login");
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+    if (!token || !storedUser) {
+      navigate("/login");
+      return;
+    }
+    try {
+      const parsedUser = JSON.parse(storedUser);
+      if (parsedUser.role !== "admin") {
+        navigate("/login");
+        return;
+      }
+      setCurrentUser(parsedUser);
+    } catch (e) {
+      console.error(e);
+      navigate("/login");
+    }
+  }, [navigate]);
 
   // Define size options based on category
   const sizeOptions = {
@@ -1165,18 +1194,54 @@ const AdminPage = () => {
           ))}
         </nav>
 
-        <div className={`p-4 border-t border-slate-100 ${sidebarCollapsed ? "items-center" : ""}`}>
+        <div className={`p-4 border-t border-slate-100 flex flex-col gap-3 ${sidebarCollapsed ? "items-center" : ""}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-semibold">
-              AD
-            </div>
+            {currentUser?.avatar ? (
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                className="w-10 h-10 rounded-xl object-cover border border-slate-100 shadow-sm"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-semibold shadow-sm">
+                {currentUser?.name
+                  ? currentUser.name
+                      .split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2)
+                  : "AD"}
+              </div>
+            )}
             {!sidebarCollapsed && (
-              <div className="flex-1">
-                <p className="font-medium text-slate-800 text-sm">Admin User</p>
-                <p className="text-xs text-slate-400">admin@shop.com</p>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-slate-800 text-sm truncate">
+                  {currentUser?.name || "Admin User"}
+                </p>
+                <p className="text-xs text-slate-400 truncate">
+                  {currentUser?.email || "admin@shop.com"}
+                </p>
               </div>
             )}
           </div>
+          {!sidebarCollapsed ? (
+            <button
+              onClick={handleLogout}
+              className="flex items-center justify-center gap-2 w-full px-4 py-2 mt-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors"
+            >
+              <LogOut size={14} />
+              <span>Log Out</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleLogout}
+              title="Log Out"
+              className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors mt-1"
+            >
+              <LogOut size={18} />
+            </button>
+          )}
         </div>
       </aside>
 
@@ -1257,7 +1322,7 @@ const AdminPage = () => {
             <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 mb-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold mb-2">Welcome back, Admin!</h2>
+                  <h2 className="text-2xl font-bold mb-2">Welcome back, {currentUser?.name || "Admin"}!</h2>
                   <p className="text-indigo-100 mb-4">Here's your store performance overview for today</p>
                   <div className="flex gap-4">
                     <div className="bg-white/20 rounded-xl px-4 py-2 backdrop-blur-sm">
