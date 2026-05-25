@@ -11,8 +11,6 @@ import {
 
 const SHIPPING = { standard: 350, express: 850 };
 
-const STEPS = ["Contact", "Delivery", "Shipping & Payment"];
-
 const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white placeholder-gray-300 transition-all";
 const labelCls = "block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5";
 
@@ -20,7 +18,6 @@ export default function Checkout() {
   const { cart, cartTotal, clearCart } = useCart();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderId, setOrderId] = useState(null);
@@ -64,30 +61,24 @@ export default function Checkout() {
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  const validate = () => {
+  const validateForm = () => {
     const e = {};
-    if (step === 0) {
-      if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Valid email required";
-    }
-    if (step === 1) {
-      if (!form.firstName.trim()) e.firstName = "Required";
-      if (!form.lastName.trim()) e.lastName = "Required";
-      if (!form.address.trim()) e.address = "Required";
-      if (!form.city.trim()) e.city = "Required";
-      if (!form.phone.trim()) e.phone = "Required";
-    }
-    if (step === 2) {
-      if (!form.paymentMethod) e.paymentMethod = "Select a payment method";
-    }
+    // Contact validation
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Valid email required";
+    // Delivery validation
+    if (!form.firstName.trim()) e.firstName = "Required";
+    if (!form.lastName.trim()) e.lastName = "Required";
+    if (!form.address.trim()) e.address = "Required";
+    if (!form.city.trim()) e.city = "Required";
+    if (!form.phone.trim()) e.phone = "Required";
+    // Payment validation
+    if (!form.paymentMethod) e.paymentMethod = "Select a payment method";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const next = () => { if (validate()) setStep(s => s + 1); };
-  const back = () => setStep(s => s - 1);
-
   const placeOrder = async () => {
-    if (!validate()) return;
+    if (!validateForm()) return;
     setSubmitting(true);
     try {
       // Step 1: Always create the order first
@@ -145,7 +136,6 @@ export default function Checkout() {
     }
   };
 
-
   // uploadReceipt — bank transfer receipt to Cloudinary
   const uploadReceipt = async () => {
     if (!receiptFile || !bankOrderId) return;
@@ -186,7 +176,6 @@ export default function Checkout() {
       </div>
     );
   }
-
 
   // --- Bank Transfer screen ---
   if (bankOrderId) {
@@ -249,8 +238,6 @@ export default function Checkout() {
     );
   }
 
-
-
   const err = (k) => errors[k] && <p className="text-red-500 text-xs mt-1">{errors[k]}</p>;
 
   return (
@@ -258,172 +245,141 @@ export default function Checkout() {
       <Header />
 
       <div className="flex-1 container mx-auto px-4 py-10 max-w-6xl">
-        {/* Step progress */}
-        <div className="flex items-center justify-center gap-2 mb-10">
-          {STEPS.map((s, i) => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all ${i === step ? "bg-indigo-600 text-white shadow-md" :
-                i < step ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"
-                }`}>
-                {i < step ? <CheckCircle className="w-4 h-4" /> : <span className="w-5 h-5 rounded-full border-2 flex items-center justify-center text-xs">{i + 1}</span>}
-                <span className="hidden sm:block">{s}</span>
-              </div>
-              {i < STEPS.length - 1 && <ChevronRight className="w-4 h-4 text-gray-300" />}
-            </div>
-          ))}
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* --- Form Panel --- */}
+          {/* --- Form Panel (All fields on one page) --- */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Contact Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-2 bg-indigo-50 rounded-lg"><User className="w-5 h-5 text-indigo-600" /></div>
+                <h2 className="text-lg font-bold text-gray-900">Contact</h2>
+              </div>
+              <div>
+                <label className={labelCls}>Email *</label>
+                <input type="email" value={form.email} onChange={e => set("email", e.target.value)}
+                  placeholder="you@example.com" className={inputCls} />
+                {err("email")}
+              </div>
+            </div>
 
-            {/* STEP 0: Contact */}
-            {step === 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 bg-indigo-50 rounded-lg"><User className="w-5 h-5 text-indigo-600" /></div>
-                  <h2 className="text-lg font-bold text-gray-900">Contact</h2>
+            {/* Delivery Section */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-2 bg-indigo-50 rounded-lg"><MapPin className="w-5 h-5 text-indigo-600" /></div>
+                <h2 className="text-lg font-bold text-gray-900">Delivery Details</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>First Name *</label>
+                  <input value={form.firstName} onChange={e => set("firstName", e.target.value)} placeholder="John" className={inputCls} />
+                  {err("firstName")}
                 </div>
                 <div>
-                  <label className={labelCls}>Email *</label>
-                  <input type="email" value={form.email} onChange={e => set("email", e.target.value)}
-                    placeholder="you@example.com" className={inputCls} />
-                  {err("email")}
+                  <label className={labelCls}>Last Name *</label>
+                  <input value={form.lastName} onChange={e => set("lastName", e.target.value)} placeholder="Doe" className={inputCls} />
+                  {err("lastName")}
                 </div>
               </div>
-            )}
-
-            {/* STEP 1: Delivery */}
-            {step === 1 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 bg-indigo-50 rounded-lg"><MapPin className="w-5 h-5 text-indigo-600" /></div>
-                  <h2 className="text-lg font-bold text-gray-900">Delivery Details</h2>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>First Name *</label>
-                    <input value={form.firstName} onChange={e => set("firstName", e.target.value)} placeholder="John" className={inputCls} />
-                    {err("firstName")}
-                  </div>
-                  <div>
-                    <label className={labelCls}>Last Name *</label>
-                    <input value={form.lastName} onChange={e => set("lastName", e.target.value)} placeholder="Doe" className={inputCls} />
-                    {err("lastName")}
-                  </div>
+              <div>
+                <label className={labelCls}>Address *</label>
+                <input value={form.address} onChange={e => set("address", e.target.value)} placeholder="123 Main Street" className={inputCls} />
+                {err("address")}
+              </div>
+              <div>
+                <label className={labelCls}>Apartment, suite, etc. <span className="text-gray-300 normal-case font-normal">(optional)</span></label>
+                <input value={form.apartment} onChange={e => set("apartment", e.target.value)} placeholder="Apt 4B" className={inputCls} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>City *</label>
+                  <input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Colombo" className={inputCls} />
+                  {err("city")}
                 </div>
                 <div>
-                  <label className={labelCls}>Address *</label>
-                  <input value={form.address} onChange={e => set("address", e.target.value)} placeholder="123 Main Street" className={inputCls} />
-                  {err("address")}
-                </div>
-                <div>
-                  <label className={labelCls}>Apartment, suite, etc. <span className="text-gray-300 normal-case font-normal">(optional)</span></label>
-                  <input value={form.apartment} onChange={e => set("apartment", e.target.value)} placeholder="Apt 4B" className={inputCls} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelCls}>City *</label>
-                    <input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Colombo" className={inputCls} />
-                    {err("city")}
-                  </div>
-                  <div>
-                    <label className={labelCls}>Postal Code <span className="text-gray-300 normal-case font-normal">(optional)</span></label>
-                    <input value={form.postalCode} onChange={e => set("postalCode", e.target.value)} placeholder="00100" className={inputCls} />
-                  </div>
-                </div>
-                <div>
-                  <label className={labelCls}>Phone *</label>
-                  <input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="+94 77 123 4567" className={inputCls} />
-                  {err("phone")}
+                  <label className={labelCls}>Postal Code <span className="text-gray-300 normal-case font-normal">(optional)</span></label>
+                  <input value={form.postalCode} onChange={e => set("postalCode", e.target.value)} placeholder="00100" className={inputCls} />
                 </div>
               </div>
-            )}
+              <div>
+                <label className={labelCls}>Phone *</label>
+                <input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="+94 77 123 4567" className={inputCls} />
+                {err("phone")}
+              </div>
+            </div>
 
-            {/* STEP 2: Shipping & Payment */}
-            {step === 2 && (
-              <div className="space-y-5">
-                {/* Shipping */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 bg-indigo-50 rounded-lg"><Truck className="w-5 h-5 text-indigo-600" /></div>
-                    <h2 className="text-lg font-bold text-gray-900">Shipping Method</h2>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      { id: "standard", label: "Standard Delivery", desc: "3–5 business days", price: 350, icon: "🚚" },
-                      { id: "express", label: "Express Delivery", desc: "1–2 business days", price: 850, icon: "⚡" },
-                    ].map(opt => (
-                      <label key={opt.id} className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${form.shippingMethod === opt.id ? "border-indigo-500 bg-indigo-50" : "border-gray-100 hover:border-gray-200"
-                        }`}>
-                        <div className="flex items-center gap-3">
-                          <input type="radio" name="shippingMethod" value={opt.id} checked={form.shippingMethod === opt.id}
-                            onChange={e => set("shippingMethod", e.target.value)} className="accent-indigo-600 w-4 h-4" />
-                          <span className="text-xl">{opt.icon}</span>
-                          <div>
-                            <p className="font-semibold text-gray-800">{opt.label}</p>
-                            <p className="text-xs text-gray-400">{opt.desc}</p>
-                          </div>
-                        </div>
-                        <span className="font-bold text-gray-800">Rs {opt.price}</span>
-                      </label>
-                    ))}
-                  </div>
+            {/* Shipping & Payment Section */}
+            <div className="space-y-5">
+              {/* Shipping */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-2 bg-indigo-50 rounded-lg"><Truck className="w-5 h-5 text-indigo-600" /></div>
+                  <h2 className="text-lg font-bold text-gray-900">Shipping Method</h2>
                 </div>
-
-                {/* Payment */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 bg-indigo-50 rounded-lg"><CreditCard className="w-5 h-5 text-indigo-600" /></div>
-                    <h2 className="text-lg font-bold text-gray-900">Payment Method</h2>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      { id: "cod", label: "Cash on Delivery", desc: "Pay when your order arrives", icon: <Banknote className="w-5 h-5 text-green-600" /> },
-                      { id: "bank_transfer", label: "Bank Transfer", desc: "Transfer to our bank account", icon: <Wallet className="w-5 h-5 text-blue-600" /> },
-                      { id: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, Amex", icon: <CreditCard className="w-5 h-5 text-purple-600" /> },
-                    ].map(opt => (
-                      <label key={opt.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${form.paymentMethod === opt.id ? "border-indigo-500 bg-indigo-50" : "border-gray-100 hover:border-gray-200"
-                        }`}>
-                        <input type="radio" name="paymentMethod" value={opt.id} checked={form.paymentMethod === opt.id}
-                          onChange={e => set("paymentMethod", e.target.value)} className="accent-indigo-600 w-4 h-4" />
-                        <div className="p-2 bg-gray-50 rounded-lg">{opt.icon}</div>
+                <div className="space-y-3">
+                  {[
+                    { id: "standard", label: "Standard Delivery", desc: "3–5 business days", price: 350, icon: "🚚" },
+                    { id: "express", label: "Express Delivery", desc: "1–2 business days", price: 850, icon: "⚡" },
+                  ].map(opt => (
+                    <label key={opt.id} className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${form.shippingMethod === opt.id ? "border-indigo-500 bg-indigo-50" : "border-gray-100 hover:border-gray-200"
+                      }`}>
+                      <div className="flex items-center gap-3">
+                        <input type="radio" name="shippingMethod" value={opt.id} checked={form.shippingMethod === opt.id}
+                          onChange={e => set("shippingMethod", e.target.value)} className="accent-indigo-600 w-4 h-4" />
+                        <span className="text-xl">{opt.icon}</span>
                         <div>
                           <p className="font-semibold text-gray-800">{opt.label}</p>
                           <p className="text-xs text-gray-400">{opt.desc}</p>
                         </div>
-                      </label>
-                    ))}
-                  </div>
-                  {err("paymentMethod")}
-                </div>
-
-                {/* Notes */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <label className={labelCls}>Order Notes <span className="text-gray-300 normal-case font-normal">(optional)</span></label>
-                  <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows="3"
-                    placeholder="Special instructions for delivery..." className={`${inputCls} resize-none`} />
+                      </div>
+                      <span className="font-bold text-gray-800">Rs {opt.price}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
-            )}
 
-            {/* Navigation Buttons */}
-            <div className="flex gap-3">
-              {step > 0 && (
-                <button onClick={back} className="flex-1 py-3.5 border-2 border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-colors">
-                  ← Back
-                </button>
-              )}
-              {step < 2 ? (
-                <button onClick={next} className="flex-1 py-3.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-sm">
-                  Continue →
-                </button>
-              ) : (
-                <button onClick={placeOrder} disabled={submitting} className="flex-1 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed">
-                  {submitting ? "Placing Order..." : "Place Order 🎉"}
-                </button>
-              )}
+              {/* Payment */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-2 bg-indigo-50 rounded-lg"><CreditCard className="w-5 h-5 text-indigo-600" /></div>
+                  <h2 className="text-lg font-bold text-gray-900">Payment Method</h2>
+                </div>
+                <div className="space-y-3">
+                  {[
+                    { id: "cod", label: "Cash on Delivery", desc: "Pay when your order arrives", icon: <Banknote className="w-5 h-5 text-green-600" /> },
+                    { id: "bank_transfer", label: "Bank Transfer", desc: "Transfer to our bank account", icon: <Wallet className="w-5 h-5 text-blue-600" /> },
+                    { id: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, Amex", icon: <CreditCard className="w-5 h-5 text-purple-600" /> },
+                  ].map(opt => (
+                    <label key={opt.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${form.paymentMethod === opt.id ? "border-indigo-500 bg-indigo-50" : "border-gray-100 hover:border-gray-200"
+                      }`}>
+                      <input type="radio" name="paymentMethod" value={opt.id} checked={form.paymentMethod === opt.id}
+                        onChange={e => set("paymentMethod", e.target.value)} className="accent-indigo-600 w-4 h-4" />
+                      <div className="p-2 bg-gray-50 rounded-lg">{opt.icon}</div>
+                      <div>
+                        <p className="font-semibold text-gray-800">{opt.label}</p>
+                        <p className="text-xs text-gray-400">{opt.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                {err("paymentMethod")}
+              </div>
+
+              {/* Notes */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <label className={labelCls}>Order Notes <span className="text-gray-300 normal-case font-normal">(optional)</span></label>
+                <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows="3"
+                  placeholder="Special instructions for delivery..." className={`${inputCls} resize-none`} />
+              </div>
             </div>
+
+            {/* Place Order Button */}
+            <button
+              onClick={placeOrder}
+              disabled={submitting}
+              className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {submitting ? "Placing Order..." : "Place Order 🎉"}
+            </button>
           </div>
 
           {/* --- Order Summary Panel --- */}
