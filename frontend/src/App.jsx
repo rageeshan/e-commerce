@@ -8,7 +8,7 @@ import Accessories from "./pages/Accessories";
 import Shoes from "./pages/Shoes";
 import Bags from "./pages/Bags";
 import Sale from "./pages/Sale";
-import AdminProductView from "./pages/AdminProductView";
+import AdminProductView from "./pages/AdminPage";
 import ProductView from "./pages/ProductView";
 import CartPage from "./pages/CartPage";
 import Checkout from "./pages/Checkout";
