@@ -720,9 +720,11 @@ const AdminProductView = () => {
     const validImages = product.image.filter(
       (img) => img && !img.includes("…") && !img.includes("...")
     );
-    const imageFilename = validImages.length > 0 ? validImages[0] : product.image[0];
-    const encodedFilename = encodeURIComponent(imageFilename);
-    return `http://localhost:5001/uploads/${encodedFilename}`;
+    const img = validImages.length > 0 ? validImages[0] : product.image[0];
+    // Already a full URL (Cloudinary or local http://...)
+    if (img.startsWith("http://") || img.startsWith("https://")) return img;
+    // Legacy: bare filename
+    return `http://localhost:5001/uploads/${encodeURIComponent(img)}`;
   };
 
   // Get stock status color

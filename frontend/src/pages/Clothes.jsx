@@ -33,7 +33,9 @@ const Clothes = () => {
     fetchProducts();
   }, []);
 
-  // Convert image filenames to URLs
+  // Convert image entries to display URLs
+  // Images are now stored as full URLs (Cloudinary or local http://...)
+  // Legacy products may still have bare filenames — handle both.
   const getProductImages = (product) => {
     if (!product.image || product.image.length === 0) {
       return [
@@ -43,11 +45,13 @@ const Clothes = () => {
 
     return product.image
       .map((img) => {
-        // Skip invalid/truncated filenames
         if (!img || img.includes("…") || img.includes("...")) return null;
+        // Already a full URL (Cloudinary or local)
+        if (img.startsWith("http://") || img.startsWith("https://")) return img;
+        // Legacy: bare filename
         return `http://localhost:5001/uploads/${encodeURIComponent(img)}`;
       })
-      .filter(Boolean); // remove nulls
+      .filter(Boolean);
   };
 
   // Filter Clothes products within price range

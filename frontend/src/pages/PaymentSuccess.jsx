@@ -3,10 +3,12 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { CheckCircle, Loader2, XCircle } from "lucide-react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import { useCart } from "../context/CartContext";
 
 export default function PaymentSuccess() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const { clearCart } = useCart();
   const [status, setStatus] = useState("loading"); // loading | success | error
   const [order, setOrder] = useState(null);
 
@@ -23,8 +25,13 @@ export default function PaymentSuccess() {
     })
       .then(r => r.json())
       .then(data => {
-        if (data.order) { setOrder(data.order); setStatus("success"); }
-        else setStatus("error");
+        if (data.order) {
+          setOrder(data.order);
+          setStatus("success");
+          clearCart(); // ✅ Clear the cart after successful card payment
+        } else {
+          setStatus("error");
+        }
       })
       .catch(() => setStatus("error"));
   }, [sessionId, orderId]);

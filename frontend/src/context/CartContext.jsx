@@ -49,11 +49,15 @@ export function CartProvider({ children }) {
     const effectivePrice =
       product.onSale && product.salePrice ? product.salePrice : product.price;
 
-    // First image URL
-    const firstImage =
-      product.image && product.image.length > 0 && !product.image[0].includes("…")
-        ? `http://localhost:5001/uploads/${encodeURIComponent(product.image[0])}`
-        : null;
+    // First image URL — use as-is if already a full URL (Cloudinary), else construct local path
+    const rawImg = product.image && product.image.length > 0 && !product.image[0].includes("…")
+      ? product.image[0]
+      : null;
+    const firstImage = rawImg
+      ? (rawImg.startsWith("http://") || rawImg.startsWith("https://")
+          ? rawImg
+          : `http://localhost:5001/uploads/${encodeURIComponent(rawImg)}`)
+      : null;
 
     setCart((prev) => {
       const existingIdx = prev.findIndex(

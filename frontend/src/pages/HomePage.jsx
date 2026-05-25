@@ -65,8 +65,8 @@ const HomePage = () => {
 
     return product.image
       .map((img) => {
-        // Skip invalid/truncated filenames
         if (!img || img.includes("…") || img.includes("...")) return null;
+        if (img.startsWith("http://") || img.startsWith("https://")) return img;
         return `http://localhost:5001/uploads/${encodeURIComponent(img)}`;
       })
       .filter(Boolean); // remove nulls

@@ -1,6 +1,42 @@
 import Product from "../Models/productModel.js";
 import path from "path";
 import fs from "fs/promises";
+import { getCloudinary } from "../Config/cloudinary.js";
+
+const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5001";
+
+/* ─────────────────────────────────────────────────────────────
+   uploadImageWithFallback
+   Try Cloudinary first. On any error, save the buffer to disk
+   inside /uploads and return the local URL instead.
+   Returns: full URL string (Cloudinary) or local URL string.
+   ───────────────────────────────────────────────────────────── */
+async function uploadImageWithFallback(file) {
+  // 1) Try Cloudinary
+  try {
+    const cloudinary = getCloudinary();
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: "stylehub/products", resource_type: "image" },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+      stream.end(file.buffer);
+    });
+    console.log(`☁️  Cloudinary upload OK: ${result.secure_url}`);
+    return { url: result.secure_url, source: "cloudinary", publicId: result.public_id };
+  } catch (cloudErr) {
+    console.warn(`⚠️  Cloudinary failed (${cloudErr.message}), falling back to local disk.`);
+  }
+
+  // 2) Fallback — save buffer to uploads/
+  const ext = path.extname(file.originalname) || ".jpg";
+  const filename = `${Date.now()}-${Math.floor(Math.random() * 10000)}${ext}`;
+  const uploadDir = path.join(process.cwd(), "uploads");
+  await fs.mkdir(uploadDir, { recursive: true });
+  await fs.writeFile(path.join(uploadDir, filename), file.buffer);
+  console.log(`💾  Saved locally: uploads/${filename}`);
+  return { url: `${BACKEND_URL}/uploads/${filename}`, source: "local", filename };
+}
 
 export async function getAllProducts(req, res) {
   try {
@@ -27,22 +63,16 @@ export async function getProductById(req, res) {
 export async function createProduct(req, res) {
   try {
     if (!req.files || req.files.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "At least one image is required" });
+      return res.status(400).json({ message: "At least one image is required" });
     }
 
-    const images = req.files.map((file) => file.filename);
+    // Upload each image — Cloudinary first, local disk on failure
+    const uploadResults = await Promise.all(req.files.map(uploadImageWithFallback));
+    const images = uploadResults.map((r) => r.url);
 
     const {
-      category,
-      name,
-      price,
-      description,
-      onSale,
-      salePrice,
-      sizes,
-      sizeQuantities,
+      category, name, price, description,
+      onSale, salePrice, sizes, sizeQuantities,
     } = req.body;
 
     // Parse sizes
@@ -51,11 +81,8 @@ export async function createProduct(req, res) {
       if (Array.isArray(sizes)) {
         parsedSizes = sizes;
       } else if (typeof sizes === "string") {
-        try {
-          parsedSizes = JSON.parse(sizes);
-        } catch {
-          parsedSizes = sizes.split(",").map((s) => s.trim());
-        }
+        try { parsedSizes = JSON.parse(sizes); }
+        catch { parsedSizes = sizes.split(",").map((s) => s.trim()); }
       }
     }
 
@@ -63,88 +90,52 @@ export async function createProduct(req, res) {
     let parsedSizeQuantities = {};
     if (sizeQuantities) {
       if (typeof sizeQuantities === "string") {
-        try {
-          parsedSizeQuantities = JSON.parse(sizeQuantities);
-        } catch (error) {
-          return res.status(400).json({
-            message: "Invalid size quantities format. Should be JSON object",
-          });
+        try { parsedSizeQuantities = JSON.parse(sizeQuantities); }
+        catch {
+          return res.status(400).json({ message: "Invalid size quantities format. Should be JSON object" });
         }
       } else {
         parsedSizeQuantities = sizeQuantities;
       }
     }
 
-    // Initialize sizeAvailability as plain object
+    // Initialize sizeAvailability
     const sizeAvailability = {};
-    if (parsedSizes.length > 0) {
-      parsedSizes.forEach((size) => {
-        const quantity = parseInt(parsedSizeQuantities[size] || 0) || 0;
-        sizeAvailability[size] = {
-          quantity,
-          available: quantity > 0,
-        };
-      });
-    }
+    parsedSizes.forEach((size) => {
+      const quantity = parseInt(parsedSizeQuantities[size] || 0) || 0;
+      sizeAvailability[size] = { quantity, available: quantity > 0 };
+    });
 
-    // Parse onSale as boolean
     const isOnSale = onSale === "true" || onSale === true;
 
-    // Parse salePrice only if onSale is true and salePrice exists
     let parsedSalePrice;
     if (isOnSale && salePrice !== undefined && salePrice !== null && String(salePrice).trim() !== "") {
       parsedSalePrice = parseFloat(salePrice);
-      if (isNaN(parsedSalePrice) || parsedSalePrice <= 0) {
-        return res.status(400).json({
-          message: "Valid sale price is required when product is on sale",
-        });
-      }
+      if (isNaN(parsedSalePrice) || parsedSalePrice <= 0)
+        return res.status(400).json({ message: "Valid sale price is required when product is on sale" });
     }
 
-    // Parse regular price
     const parsedPrice = parseFloat(price);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      return res.status(400).json({
-        message: "Valid price is required",
-      });
-    }
+    if (isNaN(parsedPrice) || parsedPrice <= 0)
+      return res.status(400).json({ message: "Valid price is required" });
 
-    // Validate sale price is lower than regular price
-    if (isOnSale && parsedSalePrice && parsedSalePrice >= parsedPrice) {
-      return res.status(400).json({
-        message: "Sale price must be lower than the original price",
-      });
-    }
+    if (isOnSale && parsedSalePrice && parsedSalePrice >= parsedPrice)
+      return res.status(400).json({ message: "Sale price must be lower than the original price" });
 
-    // Create product data object
     const productData = {
-      category,
-      image: images,
-      name,
-      price: parsedPrice,
-      description,
-      sizes: parsedSizes,
-      sizeAvailability,
+      category, image: images, name,
+      price: parsedPrice, description,
+      sizes: parsedSizes, sizeAvailability,
       onSale: isOnSale,
     };
-
-    // Only add salePrice if onSale is true and it's a valid number
-    if (isOnSale && parsedSalePrice) {
-      productData.salePrice = parsedSalePrice;
-    }
-    // If not on sale, explicitly don't include salePrice in the data
-    // This will let Mongoose use the default value (undefined) from the schema
+    if (isOnSale && parsedSalePrice) productData.salePrice = parsedSalePrice;
 
     const product = new Product(productData);
     const savedProduct = await product.save();
-
     res.status(201).json(savedProduct);
   } catch (error) {
     console.error("Error in createProduct:", error.message);
-    res.status(500).json({
-      message: "Product was not added!",
-      error: error.message,
-    });
+    res.status(500).json({ message: "Product was not added!", error: error.message });
   }
 }
 
@@ -290,22 +281,36 @@ export async function deleteProduct(req, res) {
     if (!deletedProduct)
       return res.status(404).json({ message: "Product not found!" });
 
-    // Delete associated images
+    // Clean up stored images — handle both Cloudinary URLs and local filenames
     if (deletedProduct.image && deletedProduct.image.length > 0) {
-      for (const filename of deletedProduct.image) {
+      const cloudinary = getCloudinary();
+      for (const img of deletedProduct.image) {
         try {
-          const filePath = path.join(process.cwd(), "uploads", filename);
-          await fs.unlink(filePath);
-          console.log(`Deleted file: ${filename}`);
+          if (img.startsWith("http://") || img.startsWith("https://")) {
+            // Cloudinary URL — extract public_id and destroy
+            if (img.includes("cloudinary.com")) {
+              // public_id is everything after /upload/v<version>/ without extension
+              const match = img.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z]+)?$/);
+              if (match) {
+                const publicId = match[1];
+                await cloudinary.uploader.destroy(publicId);
+                console.log(`☁️  Deleted from Cloudinary: ${publicId}`);
+              }
+            }
+            // For non-Cloudinary full URLs — nothing to do server-side
+          } else {
+            // Local filename — delete from uploads/
+            const filePath = path.join(process.cwd(), "uploads", img);
+            await fs.unlink(filePath);
+            console.log(`💾  Deleted local file: ${img}`);
+          }
         } catch (err) {
-          console.error(`Failed to delete file: ${filename}`, err.message);
+          console.error(`Failed to delete image (${img}):`, err.message);
         }
       }
     }
 
-    res
-      .status(200)
-      .json({ message: "Product and images deleted successfully!" });
+    res.status(200).json({ message: "Product and images deleted successfully!" });
   } catch (error) {
     console.error("Error in deleteProduct", error);
     res.status(500).json({ message: "Internal server error" });

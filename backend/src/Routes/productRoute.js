@@ -1,6 +1,5 @@
 import express from "express";
 import multer from "multer";
-import path from "path";
 import {
   createProduct,
   deleteProduct,
@@ -11,35 +10,35 @@ import {
 
 const router = express.Router();
 
-// ---------------- Multer Setup ----------------
-// In productRoute.js - Update the filename function
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  // Update the filename function in Multer configuration
-  filename: function (req, file, cb) {
-    const originalName = file.originalname;
-    const ext = path.extname(originalName); // Get extension (.jpg, .png, etc)
-
-    // Generate a simple, short filename
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    const cleanFilename = `${timestamp}-${random}${ext}`;
-
-    console.log(`📸 Original: ${originalName} → Saved as: ${cleanFilename}`);
-    cb(null, cleanFilename);
+/* ─────────────────────────────────────────────
+   Multer — memory storage so the controller can
+   try Cloudinary first, then fall back to disk.
+   ───────────────────────────────────────────── */
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per file
+  fileFilter: (req, file, cb) => {
+    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error("Only JPG, PNG, or WebP images are allowed"));
   },
 });
-
-const upload = multer({ storage });
-// ---------------------------------------------
 
 router.get("/", getAllProducts);
 router.get("/:id", getProductById);
 
-// Accept up to 4 images under field "image"
-router.post("/", upload.array("image", 4), createProduct);
+// Accept up to 4 images under field "image".
+// Wrap multer so errors (wrong type, too large) are forwarded as JSON via
+// the global error handler instead of Express's default HTML error page.
+router.post("/", (req, res, next) => {
+  upload.array("image", 4)(req, res, (err) => {
+    if (err) {
+      // Multer error — return JSON
+      return res.status(400).json({ message: err.message || "File upload error" });
+    }
+    next();
+  });
+}, createProduct);
 
 router.put("/:id", updateProduct);
 router.delete("/:id", deleteProduct);
