@@ -50,6 +50,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { jsPDF } from "jspdf";
 
 // Size options as a module-level constant to avoid re-creation
 const SIZE_OPTIONS = {
@@ -103,11 +104,36 @@ const AdminPage = () => {
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [updatingOrderId, setUpdatingOrderId] = useState(null);
   const [verifyingOrderId, setVerifyingOrderId] = useState(null);
+  const [exportMonth, setExportMonth] = useState("all");
 
   // Analytics State
   const [financialReport, setFinancialReport] = useState(null);
   const [analyticsPeriod, setAnalyticsPeriod] = useState("daily");
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  const filteredFinancialReport = useMemo(() => {
+    if (!financialReport) return null;
+
+    if (exportMonth === "all" || analyticsPeriod === "monthly") return financialReport;
+
+    const filteredData = financialReport.data.filter(d => {
+      const dateStr = d.period.length === 7 ? d.period + "-01T00:00:00" : d.period + "T00:00:00";
+      const date = new Date(dateStr);
+      return date.getMonth() === parseInt(exportMonth);
+    });
+
+    const summary = {
+      totalRevenue: filteredData.reduce((sum, item) => sum + item.revenue, 0),
+      totalOrders: filteredData.reduce((sum, item) => sum + item.orders, 0),
+      totalProductsSold: filteredData.reduce((sum, item) => sum + item.productsSold, 0),
+    };
+    summary.avgOrderValue = summary.totalOrders > 0 ? summary.totalRevenue / summary.totalOrders : 0;
+
+    return {
+      data: filteredData,
+      summary: summary
+    };
+  }, [financialReport, exportMonth, analyticsPeriod]);
 
   // Add Product Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -467,6 +493,217 @@ const AdminPage = () => {
     images.forEach(img => URL.revokeObjectURL(img.preview));
   };
 
+  const downloadSingleOrderReceipt = (order) => {
+    // Use the jsPDF imported at the top of the file
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+    });
+
+    // Colors
+    const primaryColor = [79, 70, 229]; // Indigo
+    const secondaryColor = [107, 114, 128]; // Gray
+    const accentColor = [16, 185, 129]; // Green
+    const borderColor = [229, 231, 235];
+
+    // Add background
+    doc.setFillColor(249, 250, 251);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // Header with gradient effect
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(0, 0, 210, 50, 'F');
+
+    doc.setFontSize(24);
+    doc.text("ORDER RECEIPT", 35, 32);
+
+    doc.setFontSize(10);
+    doc.setTextColor(199, 210, 254);
+    doc.text("Official Transaction Invoice", 35, 42);
+
+    // Order ID Badge
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(140, 15, 55, 20, 3, 3, 'FD');
+
+    doc.setFontSize(8);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("ORDER NUMBER", 145, 22);
+
+    doc.setFontSize(12);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFont("helvetica", "bold");
+    doc.text(`#${order._id.slice(-8).toUpperCase()}`, 145, 32);
+
+    // Order Date
+    doc.setFontSize(10);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Date: ${new Date(order.createdAt).toLocaleDateString()}`, 20, 70);
+    doc.text(`Time: ${new Date(order.createdAt).toLocaleTimeString()}`, 20, 78);
+
+    // Status Badges
+    const statusColors = {
+      confirmed: [59, 130, 246],
+      processing: [245, 158, 11],
+      shipped: [139, 92, 246],
+      cancelled: [239, 68, 68],
+    };
+
+    const statusColor = statusColors[order.status] || [107, 114, 128];
+    doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
+    doc.roundedRect(150, 60, 45, 15, 2, 2, 'F');
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text(order.status.toUpperCase(), 172.5, 70, { align: "center" });
+
+    // Customer Section
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
+    doc.roundedRect(20, 90, 170, 45, 4, 4, 'FD');
+
+    doc.setFontSize(11);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFont("helvetica", "bold");
+    doc.text("Customer Information", 25, 105);
+
+    doc.setFontSize(9);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${order.firstName} ${order.lastName}`, 25, 118);
+    doc.text(order.email, 25, 128);
+    doc.text(order.phone, 120, 118);
+
+    // Shipping Address
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(20, 145, 170, 35, 4, 4, 'FD');
+
+    doc.setFontSize(11);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFont("helvetica", "bold");
+    doc.text("Shipping Address", 25, 160);
+
+    doc.setFontSize(9);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${order.address}${order.apartment ? `, ${order.apartment}` : ""}`, 25, 173);
+    doc.text(`${order.city}${order.postalCode ? ` ${order.postalCode}` : ""}`, 25, 183);
+
+    // Order Items Table Header
+    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.rect(20, 195, 170, 8, 'F');
+
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text("Item", 25, 201);
+    doc.text("Size", 95, 201);
+    doc.text("Qty", 120, 201);
+    doc.text("Price", 145, 201);
+    doc.text("Total", 175, 201, { align: "right" });
+
+    // Order Items Rows
+    let yPos = 208;
+    doc.setFontSize(9);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFont("helvetica", "normal");
+
+    order.items?.forEach((item, index) => {
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      const itemName = item.name.length > 35 ? item.name.substring(0, 32) + "..." : item.name;
+      doc.text(itemName, 25, yPos);
+      doc.text(item.size, 95, yPos);
+      doc.text(item.quantity.toString(), 120, yPos);
+      doc.text(`Rs ${item.price.toLocaleString()}`, 145, yPos);
+      doc.text(`Rs ${(item.price * item.quantity).toLocaleString()}`, 175, yPos, { align: "right" });
+
+      yPos += 8;
+    });
+
+    // Totals Section
+    yPos += 5;
+    doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 8;
+
+    doc.setFontSize(10);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.text("Subtotal:", 130, yPos);
+    doc.text(`Rs ${order.subtotal?.toLocaleString()}`, 190, yPos, { align: "right" });
+    yPos += 7;
+
+    doc.text(`Shipping (${order.shippingMethod}):`, 130, yPos);
+    doc.text(`Rs ${order.shippingCost?.toLocaleString()}`, 190, yPos, { align: "right" });
+    yPos += 7;
+
+    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 8;
+
+    doc.setFontSize(12);
+    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Amount:", 130, yPos);
+    doc.text(`Rs ${order.totalAmount?.toLocaleString()}`, 190, yPos, { align: "right" });
+
+    // Payment Method Section
+    yPos += 15;
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(20, yPos, 170, 25, 4, 4, 'FD');
+
+    doc.setFontSize(9);
+    doc.setTextColor(22, 163, 74);
+    doc.setFont("helvetica", "bold");
+    doc.text("Payment Information", 25, yPos + 8);
+
+    doc.setFontSize(8);
+    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Method: ${order.paymentMethod?.replace("_", " ").toUpperCase()}`, 25, yPos + 18);
+    doc.text(`Status: ${order.paymentStatus === "verified" ? "✓ " : ""}${order.paymentStatus?.toUpperCase()}`, 120, yPos + 18);
+
+    // Footer
+    const footerY = 275;
+    doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
+    doc.line(20, footerY, 190, footerY);
+
+    doc.setFontSize(8);
+    doc.setTextColor(156, 163, 175);
+    doc.setFont("helvetica", "normal");
+    doc.text("Thank you for shopping with StyleHub!", 105, footerY + 6, { align: "center" });
+    doc.text("This is a computer-generated receipt. No signature required.", 105, footerY + 12, { align: "center" });
+
+    // Add notes if present
+    if (order.notes) {
+      yPos += 40;
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.setFillColor(254, 242, 242);
+      doc.roundedRect(20, yPos, 170, 20, 4, 4, 'FD');
+      doc.setFontSize(8);
+      doc.setTextColor(185, 28, 28);
+      doc.setFont("helvetica", "bold");
+      doc.text("Order Notes:", 25, yPos + 8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      const notesText = order.notes.length > 70 ? order.notes.substring(0, 67) + "..." : order.notes;
+      doc.text(notesText, 25, yPos + 16);
+    }
+
+    // Save the PDF
+    doc.save(`receipt-${order._id.slice(-8).toUpperCase()}.pdf`);
+    showToast("Receipt downloaded successfully!");
+  };
+
   const downloadOrderDetails = () => {
     const rows = orders.map(order => ({
       OrderID: `#${order._id.slice(-8).toUpperCase()}`,
@@ -477,6 +714,11 @@ const AdminPage = () => {
       Payment: order.paymentStatus,
       Date: new Date(order.createdAt).toLocaleString(),
     }));
+
+    if (rows.length === 0) {
+      showToast("No orders found", "error");
+      return;
+    }
 
     const csvContent = [
       Object.keys(rows[0]).join(","),
@@ -1577,6 +1819,15 @@ const AdminPage = () => {
                           {order.receiptUrl && <p><span className="font-semibold text-gray-600">Receipt: </span><a href={order.receiptUrl} target="_blank" rel="noreferrer" className="text-indigo-500 underline">View Receipt</a></p>}
                           {order.notes && <p><span className="font-semibold text-gray-600">Notes: </span>{order.notes}</p>}
                         </div>
+                        <div className="border-t border-gray-100 pt-3 flex justify-end">
+                          <button
+                            onClick={() => downloadSingleOrderReceipt(order)}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Download Receipt
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1612,16 +1863,43 @@ const AdminPage = () => {
                   <RefreshCw size={16} className={analyticsLoading ? "animate-spin" : ""} />
                   Refresh
                 </button>
+                <select
+                  value={exportMonth}
+                  onChange={e => setExportMonth(e.target.value)}
+                  className="px-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                >
+                  <option value="all">All Months</option>
+                  <option value="0">January</option>
+                  <option value="1">February</option>
+                  <option value="2">March</option>
+                  <option value="3">April</option>
+                  <option value="4">May</option>
+                  <option value="5">June</option>
+                  <option value="6">July</option>
+                  <option value="7">August</option>
+                  <option value="8">September</option>
+                  <option value="9">October</option>
+                  <option value="10">November</option>
+                  <option value="11">December</option>
+                </select>
                 <button
                   onClick={() => {
-                    if (!financialReport?.data) return;
-                    const rows = financialReport.data.map(d => ({
+                    if (!filteredFinancialReport?.data) return;
+
+                    if (filteredFinancialReport.data.length === 0) {
+                      showToast("No financial data found for the selected month", "error");
+                      return;
+                    }
+
+                    const rows = filteredFinancialReport.data.map(d => ({
                       Period: d.period,
                       Orders: d.orders,
                       Income: d.revenue,
                       ProductsSold: d.productsSold,
                     }));
-                    const s = financialReport.summary;
+
+                    const s = filteredFinancialReport.summary;
+
                     const csvContent = [
                       Object.keys(rows[0]).join(","),
                       ...rows.map(r => Object.values(r).join(",")),
@@ -1636,27 +1914,28 @@ const AdminPage = () => {
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement("a");
                     link.href = url;
-                    link.download = `financial-report-${analyticsPeriod}-${new Date().toISOString().slice(0, 10)}.csv`;
+                    const monthName = exportMonth !== "all" ? new Date(2000, parseInt(exportMonth), 1).toLocaleString('default', { month: 'short' }) : "";
+                    link.download = `financial-report-${analyticsPeriod}${monthName ? `-${monthName}` : ""}-${new Date().toISOString().slice(0, 10)}.csv`;
                     link.click();
                     URL.revokeObjectURL(url);
                   }}
-                  disabled={!financialReport?.data}
+                  disabled={!filteredFinancialReport?.data || filteredFinancialReport.data.length === 0}
                   className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all text-sm shadow-sm disabled:opacity-50"
                 >
                   <Download size={16} />
-                  Download {analyticsPeriod.charAt(0).toUpperCase() + analyticsPeriod.slice(1)} Report
+                  Financial Report
                 </button>
               </div>
             </div>
 
             {/* Summary KPI Cards */}
-            {financialReport?.summary && (
+            {filteredFinancialReport?.summary && (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: "Total Income", value: `Rs ${financialReport.summary.totalRevenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5 text-emerald-600" />, bg: "bg-emerald-50", color: "text-emerald-700" },
-                  { label: "Total Orders", value: financialReport.summary.totalOrders.toLocaleString(), icon: <ShoppingCart className="w-5 h-5 text-indigo-600" />, bg: "bg-indigo-50", color: "text-indigo-700" },
-                  { label: "Products Sold", value: financialReport.summary.totalProductsSold.toLocaleString(), icon: <Package className="w-5 h-5 text-purple-600" />, bg: "bg-purple-50", color: "text-purple-700" },
-                  { label: "Avg Order Value", value: `Rs ${financialReport.summary.avgOrderValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: <TrendingUp className="w-5 h-5 text-amber-600" />, bg: "bg-amber-50", color: "text-amber-700" },
+                  { label: "Total Income", value: `Rs ${filteredFinancialReport.summary.totalRevenue.toLocaleString()}`, icon: <DollarSign className="w-5 h-5 text-emerald-600" />, bg: "bg-emerald-50", color: "text-emerald-700" },
+                  { label: "Total Orders", value: filteredFinancialReport.summary.totalOrders.toLocaleString(), icon: <ShoppingCart className="w-5 h-5 text-indigo-600" />, bg: "bg-indigo-50", color: "text-indigo-700" },
+                  { label: "Products Sold", value: filteredFinancialReport.summary.totalProductsSold.toLocaleString(), icon: <Package className="w-5 h-5 text-purple-600" />, bg: "bg-purple-50", color: "text-purple-700" },
+                  { label: "Avg Order Value", value: `Rs ${filteredFinancialReport.summary.avgOrderValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, icon: <TrendingUp className="w-5 h-5 text-amber-600" />, bg: "bg-amber-50", color: "text-amber-700" },
                 ].map(s => (
                   <div key={s.label} className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between mb-3">
@@ -1674,14 +1953,14 @@ const AdminPage = () => {
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin w-10 h-10 rounded-full border-4 border-indigo-200 border-t-indigo-600" />
               </div>
-            ) : financialReport?.data && (() => {
+            ) : filteredFinancialReport?.data && (() => {
               const chartData = analyticsPeriod === "daily"
-                ? financialReport.data.slice(-7)
+                ? filteredFinancialReport.data.slice(-7)
                 : analyticsPeriod === "weekly"
-                  ? financialReport.data.slice(-4)
+                  ? filteredFinancialReport.data.slice(-4)
                   : analyticsPeriod === "monthly"
-                    ? financialReport.data.slice(-6)
-                    : financialReport.data;
+                    ? filteredFinancialReport.data.slice(-6)
+                    : filteredFinancialReport.data;
               const maxRevenue = Math.max(...chartData.map(d => d.revenue), 1);
               const maxOrders = Math.max(...chartData.map(d => d.orders), 1);
               const chartHeight = 260;
@@ -1828,7 +2107,7 @@ const AdminPage = () => {
             })()}
 
             {/* Detailed Data Table */}
-            {financialReport?.data && (
+            {filteredFinancialReport?.data && (
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                 <div className="p-5 border-b border-slate-100">
                   <h3 className="font-semibold text-slate-800 flex items-center gap-2">
@@ -1848,7 +2127,7 @@ const AdminPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {financialReport.data.filter(d => d.orders > 0).map((d, i) => (
+                      {filteredFinancialReport.data.filter(d => d.orders > 0).map((d, i) => (
                         <tr key={i} className="border-t border-slate-50 hover:bg-slate-50/50 transition-colors">
                           <td className="py-3 px-5 text-sm font-medium text-slate-700">{d.period}</td>
                           <td className="py-3 px-5 text-sm text-right text-slate-600">{d.orders}</td>
@@ -1859,7 +2138,7 @@ const AdminPage = () => {
                           </td>
                         </tr>
                       ))}
-                      {financialReport.data.filter(d => d.orders > 0).length === 0 && (
+                      {filteredFinancialReport.data.filter(d => d.orders > 0).length === 0 && (
                         <tr>
                           <td colSpan={5} className="py-12 text-center text-slate-400 text-sm">No order data for this period</td>
                         </tr>
