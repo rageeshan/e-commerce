@@ -22,6 +22,8 @@ import {
   Menu,
   ChevronLeft,
   TrendingUp,
+  Lock,
+  User,
   ShoppingCart,
   DollarSign,
   Star,
@@ -86,6 +88,13 @@ const PAYMENT_ICONS = {
 
 const STATUSES = ["confirmed", "processing", "shipped", "cancelled"];
 
+const getAddressString = (addr) => {
+  if (typeof addr === "object" && addr !== null) {
+    return `${addr.street || ""}, ${addr.city || ""}, ${addr.state || ""}`.replace(/^,\s*|,\s*$/g, "");
+  }
+  return addr || "";
+};
+
 const AdminPage = () => {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
@@ -96,7 +105,27 @@ const AdminPage = () => {
   const [viewMode, setViewMode] = useState("grid");
   const [sortBy, setSortBy] = useState("name");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState("products");
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  // Settings Tab Modal States
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmNewPassword: "",
+  });
+
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [detailsForm, setDetailsForm] = useState({
+    firstName: "",
+    lastName: "",
+    mobile: "",
+    address: "",
+  });
+
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+
+  const [isSettingsSubmitting, setIsSettingsSubmitting] = useState(false);
 
   // Orders State
   const [orders, setOrders] = useState([]);
@@ -218,6 +247,117 @@ const AdminPage = () => {
       navigate("/login");
     }
   }, [navigate]);
+
+  const openDetailsModal = () => {
+    if (currentUser) {
+      setDetailsForm({
+        firstName: currentUser.firstName || currentUser.name?.split(" ")[0] || "",
+        lastName: currentUser.lastName || currentUser.name?.split(" ").slice(1).join(" ") || "",
+        mobile: currentUser.mobile || currentUser.phone || "",
+        address: getAddressString(currentUser.address),
+      });
+    }
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleChangePasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
+      showToast("New passwords do not match", "error");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      showToast("Password must be at least 6 characters long", "error");
+      return;
+    }
+
+    setIsSettingsSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:5001/api/user/change-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to change password");
+      }
+
+      showToast("Password changed successfully! Logging out...");
+      
+      setTimeout(() => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        navigate("/login");
+      }, 1500);
+
+    } catch (error) {
+      console.error(error);
+      showToast(error.message, "error");
+    } finally {
+      setIsSettingsSubmitting(false);
+    }
+  };
+
+  const handleChangeDetailsSubmit = async (e) => {
+    e.preventDefault();
+    if (!detailsForm.firstName.trim() || !detailsForm.lastName.trim() || !detailsForm.mobile.trim() || !detailsForm.address.trim()) {
+      showToast("All fields are required", "error");
+      return;
+    }
+
+    setIsSettingsSubmitting(true);
+    try {
+      const userId = currentUser.id || currentUser._id;
+      const res = await fetch(`http://localhost:5001/api/user/${userId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          firstName: detailsForm.firstName.trim(),
+          lastName: detailsForm.lastName.trim(),
+          mobile: detailsForm.mobile.trim(),
+          address: detailsForm.address.trim(),
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to update details");
+      }
+
+      const updatedUser = {
+        ...currentUser,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        name: `${data.firstName} ${data.lastName}`,
+        mobile: data.mobile,
+        phone: data.mobile,
+        address: data.address,
+        avatar: currentUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.firstName}`,
+      };
+
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      showToast("Personal details updated successfully!");
+      setIsDetailsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      showToast(error.message, "error");
+    } finally {
+      setIsSettingsSubmitting(false);
+    }
+  };
 
   // Define size options based on category
   const sizeOptions = {
@@ -1020,11 +1160,7 @@ const AdminPage = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   const recentOrders = orders
-    .filter(order => {
-      const orderDate = new Date(order.createdAt);
-      const now = new Date();
-      return (now - orderDate) / (1000 * 60 * 60) <= 24;
-    })
+    .filter(order => order.status === "confirmed")
     .slice(0, 5);
 
   // Filter and sort products
@@ -1196,24 +1332,16 @@ const AdminPage = () => {
 
         <div className={`p-4 border-t border-slate-100 flex flex-col gap-3 ${sidebarCollapsed ? "items-center" : ""}`}>
           <div className="flex items-center gap-3">
-            {currentUser?.avatar ? (
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                className="w-10 h-10 rounded-xl object-cover border border-slate-100 shadow-sm"
-              />
-            ) : (
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-semibold shadow-sm">
-                {currentUser?.name
-                  ? currentUser.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)
-                  : "AD"}
-              </div>
-            )}
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-semibold shadow-sm">
+              {currentUser?.name
+                ? currentUser.name
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)
+                : <User size={18} />}
+            </div>
             {!sidebarCollapsed && (
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-800 text-sm truncate">
@@ -1227,7 +1355,7 @@ const AdminPage = () => {
           </div>
           {!sidebarCollapsed ? (
             <button
-              onClick={handleLogout}
+              onClick={() => setIsLogoutConfirmOpen(true)}
               className="flex items-center justify-center gap-2 w-full px-4 py-2 mt-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors"
             >
               <LogOut size={14} />
@@ -1235,7 +1363,7 @@ const AdminPage = () => {
             </button>
           ) : (
             <button
-              onClick={handleLogout}
+              onClick={() => setIsLogoutConfirmOpen(true)}
               title="Log Out"
               className="p-2.5 text-red-500 hover:bg-red-50 rounded-xl transition-colors mt-1"
             >
@@ -2216,15 +2344,114 @@ const AdminPage = () => {
           </div>
         )}
 
-        {/* Placeholder for other tabs */}
+        {/* Settings Tab */}
         {(activeTab === "settings") && (
           <div className="p-6">
-            <div className="bg-white rounded-xl p-12 text-center shadow-sm">
-              <div className="w-20 h-20 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                <Package className="text-slate-400" size={32} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl">
+              {/* User Profile Card */}
+              <div className="lg:col-span-1 bg-white rounded-2xl border border-slate-100 p-6 shadow-sm flex flex-col items-center text-center">
+                <div className="relative mb-4">
+                  <div className="w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white text-3xl font-bold shadow-md">
+                    {currentUser?.name
+                      ? currentUser.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)
+                      : <User size={40} />}
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 bg-indigo-600 text-white rounded-lg p-1.5 shadow-md">
+                    <User size={14} />
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-bold text-slate-800 mb-1">
+                  {currentUser?.name || "Admin User"}
+                </h3>
+                <span className="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full mb-6">
+                  {currentUser?.role?.toUpperCase() || "ADMINISTRATOR"}
+                </span>
+
+                <div className="w-full space-y-4 border-t border-slate-100 pt-6 text-left">
+                  <div>
+                    <span className="text-xs text-slate-400 font-semibold block uppercase tracking-wider mb-1">Email Address</span>
+                    <p className="text-sm font-medium text-slate-700 break-all">{currentUser?.email || "admin@shop.com"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 font-semibold block uppercase tracking-wider mb-1">Mobile Number</span>
+                    <p className="text-sm font-medium text-slate-700">{currentUser?.mobile || currentUser?.phone || "+94 77 123 4567"}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 font-semibold block uppercase tracking-wider mb-1">Address</span>
+                    <p className="text-sm font-medium text-slate-700 break-words">
+                      {currentUser ? getAddressString(currentUser.address) : "123, Main Street, Colombo"}
+                    </p>
+                  </div>
+                  {currentUser?.joinDate && (
+                    <div>
+                      <span className="text-xs text-slate-400 font-semibold block uppercase tracking-wider mb-1">Member Since</span>
+                      <p className="text-sm font-medium text-slate-700">
+                        {new Date(currentUser.joinDate).toLocaleDateString(undefined, {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <h3 className="text-xl font-semibold text-slate-700 mb-2">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Management</h3>
-              <p className="text-slate-500">This section is under development. Coming soon!</p>
+
+              {/* Action Cards (Password & Personal Details) */}
+              <div className="lg:col-span-2 flex flex-col gap-6">
+                {/* Change Personal Details Card */}
+                <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow flex-1">
+                  <div>
+                    <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center mb-4">
+                      <User className="text-emerald-600" size={24} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">Change Personal Details</h3>
+                    <p className="text-slate-500 text-sm mb-6">
+                      Update your personal profile information including your first name, last name, mobile number, and address.
+                    </p>
+                  </div>
+                  <button
+                    onClick={openDetailsModal}
+                    className="w-full sm:w-auto self-start py-3 px-6 bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <User size={16} />
+                    Change Personal Details
+                  </button>
+                </div>
+
+                {/* Change Password Card */}
+                <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow flex-1">
+                  <div>
+                    <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-4">
+                      <Lock className="text-indigo-600" size={24} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-800 mb-2">Change Password</h3>
+                    <p className="text-slate-500 text-sm mb-6">
+                      Ensure your account is secure by regularly updating your password. Changing your password will log you out of this session.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPasswordForm({
+                        currentPassword: "",
+                        newPassword: "",
+                        confirmNewPassword: "",
+                      });
+                      setIsPasswordModalOpen(true);
+                    }}
+                    className="w-full sm:w-auto self-start py-3 px-6 bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-100 hover:text-slate-800 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Lock size={16} />
+                    Change Password
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -2630,6 +2857,173 @@ const AdminPage = () => {
         </div>
       )}
 
+      {/* Change Password Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="border-b border-slate-100 p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+                  <Lock className="text-indigo-600" size={18} />
+                </div>
+                <h2 className="text-lg font-bold text-slate-800">Change Password</h2>
+              </div>
+              <button
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleChangePasswordSubmit} className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                  required
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 text-sm focus:outline-none"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">New Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                  required
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 text-sm focus:outline-none"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Confirm New Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.confirmNewPassword}
+                  onChange={(e) => setPasswordForm({ ...passwordForm, confirmNewPassword: e.target.value })}
+                  required
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 text-sm focus:outline-none"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPasswordModalOpen(false)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-semibold text-sm rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSettingsSubmitting}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isSettingsSubmitting ? "Changing..." : "Change Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Personal Details Modal */}
+      {isDetailsModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="border-b border-slate-100 p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
+                  <User className="text-emerald-600" size={18} />
+                </div>
+                <h2 className="text-lg font-bold text-slate-800">Change Personal Details</h2>
+              </div>
+              <button
+                onClick={() => setIsDetailsModalOpen(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-400 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleChangeDetailsSubmit} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600">First Name</label>
+                  <input
+                    type="text"
+                    value={detailsForm.firstName}
+                    onChange={(e) => setDetailsForm({ ...detailsForm, firstName: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 text-sm focus:outline-none"
+                    placeholder="John"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-600">Last Name</label>
+                  <input
+                    type="text"
+                    value={detailsForm.lastName}
+                    onChange={(e) => setDetailsForm({ ...detailsForm, lastName: e.target.value })}
+                    required
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 text-sm focus:outline-none"
+                    placeholder="Doe"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Mobile Number</label>
+                <input
+                  type="text"
+                  value={detailsForm.mobile}
+                  onChange={(e) => setDetailsForm({ ...detailsForm, mobile: e.target.value })}
+                  required
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 text-sm focus:outline-none"
+                  placeholder="+94 77 123 4567"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-600">Address</label>
+                <textarea
+                  value={detailsForm.address}
+                  onChange={(e) => setDetailsForm({ ...detailsForm, address: e.target.value })}
+                  required
+                  rows="3"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-slate-50 text-sm focus:outline-none resize-none"
+                  placeholder="123, Main Street, Colombo"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="flex-1 py-2.5 border border-slate-200 text-slate-600 font-semibold text-sm rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSettingsSubmitting}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isSettingsSubmitting ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Delete Modal */}
       {isDeleteOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -2648,6 +3042,40 @@ const AdminPage = () => {
                 </button>
                 <button onClick={confirmDelete} className="px-5 py-2 bg-red-500 text-white font-medium rounded-xl hover:bg-red-600">
                   Delete Product
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {isLogoutConfirmOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-14 h-14 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <LogOut className="text-red-600" size={24} />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-2">Log Out</h3>
+              <p className="text-slate-500 mb-6">
+                Are you sure you want to log out of your StyleHub admin account?
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setIsLogoutConfirmOpen(false)}
+                  className="flex-1 px-5 py-2.5 border border-slate-200 text-slate-600 font-semibold text-sm rounded-xl hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setIsLogoutConfirmOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex-1 px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white font-semibold text-sm rounded-xl transition-all shadow-md"
+                >
+                  Log Out
                 </button>
               </div>
             </div>
