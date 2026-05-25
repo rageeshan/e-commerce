@@ -55,8 +55,8 @@ export function CartProvider({ children }) {
       : null;
     const firstImage = rawImg
       ? (rawImg.startsWith("http://") || rawImg.startsWith("https://")
-          ? rawImg
-          : `http://localhost:5001/uploads/${encodeURIComponent(rawImg)}`)
+        ? rawImg
+        : `http://localhost:5001/uploads/${encodeURIComponent(rawImg)}`)
       : null;
 
     setCart((prev) => {
@@ -136,7 +136,6 @@ export function CartProvider({ children }) {
    */
   function clearCart() {
     setCart([]);
-    toast.success("Cart cleared");
   }
 
   return (
