@@ -87,7 +87,7 @@ const Login = () => {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5001/api/user/login", {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/user/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -109,8 +109,7 @@ const Login = () => {
         ...data.user,
         avatar:
           data.user.avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${
-            data.user.name || data.user.email
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.user.name || data.user.email
           }`,
         stats: {
           totalOrders: 0,
@@ -184,12 +183,12 @@ const Login = () => {
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   Password
                 </label>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
                     setForgotStep(1);
                     setShowForgotModal(true);
-                  }} 
+                  }}
                   className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
                 >
                   Forgot Password?
@@ -244,7 +243,7 @@ const Login = () => {
       {showForgotModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-white border border-slate-100 rounded-2xl shadow-2xl max-w-md w-full p-8 relative animate-in fade-in zoom-in-95 duration-200 text-slate-800">
-            <button 
+            <button
               onClick={() => {
                 setShowForgotModal(false);
                 setForgotStep(1);
