@@ -1,9 +1,9 @@
 import dotenv from "dotenv";
 import express from "express";
-import { connectDB } from "./Config/db.js";
-import productRoute from "./Routes/productRoute.js";
-import orderRoute from "./Routes/orderRoute.js";
-import userRoute from "./Routes/userRoute.js";
+import { connectDB } from "./src/Config/db.js";
+import productRoute from "./src/Routes/productRoute.js";
+import orderRoute from "./src/Routes/orderRoute.js";
+import userRoute from "./src/Routes/userRoute.js";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
