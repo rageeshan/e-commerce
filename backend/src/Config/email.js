@@ -1,17 +1,26 @@
 import nodemailer from "nodemailer";
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER || "your-email@gmail.com",
-    pass: process.env.EMAIL_PASS || "your-app-password",
-  },
-});
+/* ─── Lazy transporter — only created when first OTP is sent ─── */
+let _transporter = null;
+
+const getTransporter = () => {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+  }
+  return _transporter;
+};
 
 export const sendOTP = async (email, otp) => {
   try {
+    const transporter = getTransporter();
     const mailOptions = {
-      from: process.env.EMAIL_USER || "your-email@gmail.com",
+      from: `"StyleHub Store" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Verify Your Account - OTP",
       html: `
