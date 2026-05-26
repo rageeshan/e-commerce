@@ -1,7 +1,16 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Mail, Lock, Eye, EyeOff, ShieldAlert, ArrowLeft, Key, ShoppingBag } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ShieldAlert,
+  ArrowLeft,
+  Key,
+  ShoppingBag,
+} from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -26,11 +35,14 @@ const Login = () => {
 
     setIsForgotSubmitting(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: forgotEmail }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/user/forgot-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: forgotEmail }),
+        },
+      );
 
       const data = await res.json();
       if (!res.ok) {
@@ -57,11 +69,18 @@ const Login = () => {
 
     setIsForgotSubmitting(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: forgotEmail, otp: forgotOtp, newPassword }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/user/reset-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: forgotEmail,
+            otp: forgotOtp,
+            newPassword,
+          }),
+        },
+      );
 
       const data = await res.json();
       if (!res.ok) {
@@ -87,11 +106,14 @@ const Login = () => {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/user/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        },
+      );
 
       const data = await res.json();
 
@@ -109,7 +131,8 @@ const Login = () => {
         ...data.user,
         avatar:
           data.user.avatar ||
-          `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.user.name || data.user.email
+          `https://api.dicebear.com/7.x/avataaars/svg?seed=${
+            data.user.name || data.user.email
           }`,
         stats: {
           totalOrders: 0,
@@ -162,7 +185,9 @@ const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                Email Address
+              </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400">
                   <Mail className="w-4 h-4" />
@@ -211,7 +236,11 @@ const Login = () => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -253,8 +282,18 @@ const Login = () => {
               }}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
 
@@ -262,16 +301,22 @@ const Login = () => {
               <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
                 <Key className="w-4 h-4" />
               </div>
-              <h2 className="text-xl font-bold text-slate-800">Reset Password</h2>
+              <h2 className="text-xl font-bold text-slate-800">
+                Reset Password
+              </h2>
             </div>
             <p className="text-slate-500 text-sm mb-6">
-              {forgotStep === 1 ? "Enter your email to receive a password reset OTP" : "Enter the 6-digit OTP and configure your new password"}
+              {forgotStep === 1
+                ? "Enter your email to receive a password reset OTP"
+                : "Enter the 6-digit OTP and configure your new password"}
             </p>
 
             {forgotStep === 1 ? (
               <form onSubmit={handleRequestOtp} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Email Address</label>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    Email Address
+                  </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400">
                       <Mail className="w-4 h-4" />
@@ -297,7 +342,9 @@ const Login = () => {
             ) : (
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Enter OTP</label>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    Enter OTP
+                  </label>
                   <input
                     type="text"
                     value={forgotOtp}
@@ -309,7 +356,9 @@ const Login = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">New Password</label>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    New Password
+                  </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400">
                       <Lock className="w-4 h-4" />
@@ -324,10 +373,16 @@ const Login = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => setShowForgotNewPassword(!showForgotNewPassword)}
+                      onClick={() =>
+                        setShowForgotNewPassword(!showForgotNewPassword)
+                      }
                       className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-650"
                     >
-                      {showForgotNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showForgotNewPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
                     </button>
                   </div>
                 </div>
