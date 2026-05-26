@@ -21,9 +21,9 @@ app.use(express.json());
 
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-app.use("/products", productRoute);
-app.use("/orders", orderRoute);
-app.use("/user", userRoute);
+app.use("/api/products", productRoute);
+app.use("/api/orders", orderRoute);
+app.use("/api/user", userRoute);
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
