@@ -26,7 +26,7 @@ const Login = () => {
 
     setIsForgotSubmitting(true);
     try {
-      const res = await fetch("http://localhost:5001/api/user/forgot-password", {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail }),
@@ -57,7 +57,7 @@ const Login = () => {
 
     setIsForgotSubmitting(true);
     try {
-      const res = await fetch("http://localhost:5001/api/user/reset-password", {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail, otp: forgotOtp, newPassword }),

@@ -36,7 +36,7 @@ if (typeof document !== "undefined" && !document.getElementById("track-anim")) {
   document.head.appendChild(s);
 }
 
-const API_BASE = "http://localhost:5001/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL;
 
 const ORDER_STEPS = [
   { key: "confirmed",  label: "Order Confirmed", icon: CheckCircle },

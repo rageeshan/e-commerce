@@ -82,7 +82,7 @@ export default function Checkout() {
     setSubmitting(true);
     try {
       // Step 1: Always create the order first
-      const res = await fetch("http://localhost:5001/api/orders", {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -121,7 +121,7 @@ export default function Checkout() {
 
       } else if (form.paymentMethod === "card") {
         // Card — get Stripe session URL and redirect browser to Stripe
-        const sRes = await fetch(`http://localhost:5001/api/orders/${oid}/stripe-session`, {
+        const sRes = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${oid}/stripe-session`, {
           method: "POST",
         });
         const sData = await sRes.json();
@@ -143,7 +143,7 @@ export default function Checkout() {
     try {
       const fd = new FormData();
       fd.append("receipt", receiptFile);
-      const res = await fetch(`http://localhost:5001/api/orders/${bankOrderId}/receipt`, { method: "POST", body: fd });
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${bankOrderId}/receipt`, { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Upload failed");
       setReceiptDone(true);

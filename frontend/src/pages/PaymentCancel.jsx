@@ -12,13 +12,13 @@ export default function PaymentCancel() {
   // Mark the order as cancelled when user lands here
   useEffect(() => {
     if (!orderId) return;
-    fetch(`http://localhost:5001/api/orders/${orderId}/status`, {
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${orderId}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "cancelled" }),
     }).catch(console.error);
 
-    fetch(`http://localhost:5001/api/orders/${orderId}/payment-status`, {
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${orderId}/payment-status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paymentStatus: "cancelled" }),

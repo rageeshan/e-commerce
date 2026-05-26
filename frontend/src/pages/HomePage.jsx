@@ -91,7 +91,7 @@ const HomePage = () => {
     const fetch = async () => {
       try {
         const res = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL}/api/products`,
+          `${import.meta.env.VITE_API_BASE_URL}/products`,
         );
         const sorted = res.data
           .sort((a, b) => {
@@ -119,7 +119,7 @@ const HomePage = () => {
       .map((img) => {
         if (!img || img.includes("…") || img.includes("...")) return null;
         if (img.startsWith("http://") || img.startsWith("https://")) return img;
-        return `http://localhost:5001/uploads/${encodeURIComponent(img)}`;
+        return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/uploads/${encodeURIComponent(img)}`;
       })
       .filter(Boolean);
   };

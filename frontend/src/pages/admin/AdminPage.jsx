@@ -275,7 +275,7 @@ const AdminPage = () => {
     setIsSettingsSubmitting(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5001/api/user/change-password", {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -318,7 +318,7 @@ const AdminPage = () => {
     setIsSettingsSubmitting(true);
     try {
       const userId = currentUser.id || currentUser._id;
-      const res = await fetch(`http://localhost:5001/api/user/${userId}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/user/${userId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json"
@@ -371,7 +371,7 @@ const AdminPage = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5001/api/products?limit=100");
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/products?limit=100`);
       const data = await res.json();
       setProducts([...(Array.isArray(data) ? data : (data.products || []))]);
     } catch (error) {
@@ -386,7 +386,7 @@ const AdminPage = () => {
   const fetchOrders = async () => {
     setOrdersLoading(true);
     try {
-      const res = await fetch("http://localhost:5001/api/orders");
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders`);
       const data = await res.json();
       setOrders(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -401,7 +401,7 @@ const AdminPage = () => {
   const updateOrderStatus = async (orderId, status) => {
     setUpdatingOrderId(orderId);
     try {
-      const res = await fetch(`http://localhost:5001/api/orders/${orderId}/status`, {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${orderId}/status`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
@@ -423,7 +423,7 @@ const AdminPage = () => {
   const verifyPayment = async (orderId, paymentStatus) => {
     setVerifyingOrderId(orderId);
     try {
-      const res = await fetch(`http://localhost:5001/api/orders/${orderId}/payment-status`, {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${orderId}/payment-status`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paymentStatus }),
       });
@@ -444,7 +444,7 @@ const AdminPage = () => {
   const fetchFinancialReport = async (period) => {
     setAnalyticsLoading(true);
     try {
-      const res = await fetch(`http://localhost:5001/api/orders/financial-report?period=${period}`);
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/financial-report?period=${period}`);
       const data = await res.json();
       setFinancialReport(data);
     } catch (e) {
@@ -620,7 +620,7 @@ const AdminPage = () => {
         form.append("salePrice", parseFloat(addFormData.salePrice).toString());
       }
 
-      const res = await fetch("http://localhost:5001/api/products", {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/products`, {
         method: "POST",
         body: form,
       });
@@ -1003,7 +1003,7 @@ const AdminPage = () => {
 
     try {
       const res = await fetch(
-        `http://localhost:5001/api/products/${selectedProduct._id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/products/${selectedProduct._id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -1095,7 +1095,7 @@ const AdminPage = () => {
       };
 
       const res = await fetch(
-        `http://localhost:5001/api/products/${selectedSizeProduct._id}`,
+        `${import.meta.env.VITE_API_BASE_URL}/products/${selectedSizeProduct._id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -1136,7 +1136,7 @@ const AdminPage = () => {
   const confirmDelete = async () => {
     try {
       const res = await fetch(
-        `http://localhost:5001/api/products/${deleteProductId}`,
+        `${import.meta.env.VITE_API_BASE_URL}/products/${deleteProductId}`,
         { method: "DELETE" }
       );
       const data = await res.json();
@@ -1213,7 +1213,7 @@ const AdminPage = () => {
     // Already a full URL (Cloudinary or local http://...)
     if (img.startsWith("http://") || img.startsWith("https://")) return img;
     // Legacy: bare filename
-    return `http://localhost:5001/uploads/${encodeURIComponent(img)}`;
+    return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/uploads/${encodeURIComponent(img)}`;
   };
 
   // Get stock status color

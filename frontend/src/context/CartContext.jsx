@@ -56,7 +56,7 @@ export function CartProvider({ children }) {
     const firstImage = rawImg
       ? (rawImg.startsWith("http://") || rawImg.startsWith("https://")
         ? rawImg
-        : `http://localhost:5001/uploads/${encodeURIComponent(rawImg)}`)
+        : `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/uploads/${encodeURIComponent(rawImg)}`)
       : null;
 
     setCart((prev) => {

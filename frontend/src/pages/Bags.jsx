@@ -43,7 +43,7 @@ const Bags = () => {
 
   useEffect(() => {
     axios
-      .get(`${import.meta.env.VITE_API_BASE_URL}/api/products`)
+      .get(`${import.meta.env.VITE_API_BASE_URL}/products`)
       .then((res) => setProducts(res.data))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
@@ -58,7 +58,7 @@ const Bags = () => {
       .map((img) => {
         if (!img || img.includes("…") || img.includes("...")) return null;
         if (img.startsWith("http://") || img.startsWith("https://")) return img;
-        return `http://localhost:5001/uploads/${encodeURIComponent(img)}`;
+        return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/uploads/${encodeURIComponent(img)}`;
       })
       .filter(Boolean);
   };

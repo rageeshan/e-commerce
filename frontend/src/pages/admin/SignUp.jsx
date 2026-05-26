@@ -90,7 +90,7 @@ const SignUp = () => {
 
     try {
       const response = await axios.post(
-        "http://localhost:5001/api/user",
+        `${import.meta.env.VITE_API_BASE_URL}/user`,
         formData
       );
 
@@ -115,7 +115,7 @@ const SignUp = () => {
 
     setIsSubmitting(true);
     try {
-      const response = await axios.post("http://localhost:5001/api/user/verify-otp", {
+      const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/user/verify-otp`, {
         email: registeredEmail,
         otp,
       });

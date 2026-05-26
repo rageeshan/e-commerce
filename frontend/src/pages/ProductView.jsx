@@ -41,11 +41,11 @@ const ProductView = () => {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const res = await axios.get(`http://localhost:5001/api/products/${id}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/products/${id}`);
         setProduct(res.data);
 
         const allProductsRes = await axios.get(
-          "http://localhost:5001/api/products?limit=100"
+          `${import.meta.env.VITE_API_BASE_URL}/products?limit=100`
         );
         const allProducts = Array.isArray(allProductsRes.data)
           ? allProductsRes.data
@@ -77,7 +77,7 @@ const ProductView = () => {
       .map((img) => {
         if (!img || img.includes("…") || img.includes("...")) return null;
         if (img.startsWith("http://") || img.startsWith("https://")) return img;
-        return `http://localhost:5001/uploads/${encodeURIComponent(img)}`;
+        return `${import.meta.env.VITE_API_BASE_URL.replace('/api', '')}/uploads/${encodeURIComponent(img)}`;
       })
       .filter(Boolean);
   };

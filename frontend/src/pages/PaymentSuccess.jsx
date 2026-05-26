@@ -18,7 +18,7 @@ export default function PaymentSuccess() {
   useEffect(() => {
     if (!sessionId || !orderId) { setStatus("error"); return; }
 
-    fetch(`http://localhost:5001/api/orders/${orderId}/confirm-payment`, {
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/orders/${orderId}/confirm-payment`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId }),
